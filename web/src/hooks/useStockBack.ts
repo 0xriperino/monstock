@@ -6,7 +6,7 @@ import { getWalletClient } from "wagmi/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TransactionReceipt, WalletClient } from "viem";
 import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } from "../types/ui";
-import { chain, deploymentReady, factoryAddress, publicClient, stockAddress } from "../lib/chain";
+import { chain, deploymentReady, publicClient, stockAddress, quoteAssets } from "../lib/chain";
 import { emptyData, errorMessage, StockBackClient } from "../lib/stockback";
 
 export function useStockBack() {
@@ -15,6 +15,8 @@ export function useStockBack() {
   const { connectors, connectAsync, isPending: connecting } = useConnect();
   const { switchChainAsync } = useSwitchChain();
   const queries = useQueryClient();
+  const [assetId, setAssetId] = useState<string>(stockAddress ?? quoteAssets[0]?.id ?? "");
+  const asset = quoteAssets.find(a => a.id.toLowerCase() === assetId.toLowerCase());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quote, setQuote] = useState<TradeQuote | null>(null);
   const [transaction, setTransaction] = useState<StockBackUIData["transaction"]>({ status: "idle" });
@@ -24,14 +26,15 @@ export function useStockBack() {
   const activeSession = useRef(session);
   activeSession.current = session;
   useEffect(() => { setQuote(null); setTransaction({ status: "idle" }); quoteSequence.current++; }, [session]);
-  const client = useMemo(() => stockAddress && factoryAddress ? new StockBackClient(
-    publicClient, chain, stockAddress, factoryAddress,
+  const client = useMemo(() => asset ? new StockBackClient(
+    publicClient, chain, asset.id, asset.factory,
     async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
     (label, hash) => { if (activeSession.current === session) setTransaction({ status: "pending", label, hash, explorerUrl: hash && chain.blockExplorers ? `${chain.blockExplorers.default.url}/tx/${hash}` : undefined }); },
-  ) : null, [config, session]);
+    quoteAssets,
+  ) : null, [config, session, asset]);
 
   const snapshot = useQuery({
-    queryKey: ["stockback", chain.id, stockAddress, factoryAddress, account.address, selectedId],
+    queryKey: ["stockback", chain.id, assetId, account.address, selectedId],
     queryFn: () => client!.snapshot(account.address, selectedId),
     enabled: Boolean(client), refetchInterval: 15_000,
   });
@@ -43,6 +46,8 @@ export function useStockBack() {
   data.wallet.status = connecting || account.status === "connecting" || account.status === "reconnecting" ? "connecting" : account.isConnected ? "connected" : "disconnected";
   data.wallet.address = account.address ?? null;
   data.wallet.networkStatus = !account.isConnected ? "unknown" : account.chainId === chain.id ? "correct" : "wrong";
+  data.quoteAssets = quoteAssets;
+  if (asset) data.stockToken = asset;
   data.tradeQuote = quote;
   data.transaction = transaction;
 
@@ -85,22 +90,30 @@ export function useStockBack() {
     }
   }
   const actions: StockBackUIActions = {
+    selectQuoteAsset: id => {
+      if (locked.current) throw new Error("Complete the current wallet action first.");
+      if (!quoteAssets.some(a => a.id.toLowerCase() === id.toLowerCase())) throw new Error("Unknown quote asset.");
+      setAssetId(id); setSelectedId(null); setQuote(null); quoteSequence.current++;
+    },
     connectWallet: () => action("Connect wallet", async () => {
       const connector = connectors.find(c => c.type === "injected");
       if (!connector || !await connector.getProvider()) throw new Error("Install or enable an Ethereum-compatible browser wallet, then reconnect.");
       await connectAsync({ connector });
     }),
     switchNetwork: () => action(`Switch to ${chain.name}`, async () => { await switchChainAsync({ chainId: chain.id }); }),
-    requestFaucet: () => action("Claim test MockSPYx", () => requireClient().faucet()),
-    createCoin: params => action("Create coin", () => requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity)),
+    requestFaucet: () => action(`Claim test ${data.stockToken.symbol}`, () => requireClient().faucet()),
+    createCoin: params => action("Create coin", () => {
+      if (params.stockTokenId && params.stockTokenId.toLowerCase() !== assetId.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+      return requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
+    }),
     selectMarket: marketId => { if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
-    approveStock: params => action("Approve MockSPYx", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(c.stock, p.market, params.amount); }),
+    approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
     approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     sell: params => action("Sell meme tokens", () => { if (params.side !== "sell") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     settleEpoch: id => action("Settle epoch", () => requireClient().settle(id)),
     claimHolderRewards: id => action("Claim holder rewards", () => requireClient().claim(id)),
-    approveVault: amount => action("Approve StockVault", async () => { const c = requireClient(); const p = await c.pool(selectedMarket()); return c.approve(c.stock, p.vault, amount); }),
+    approveVault: amount => action("Approve StockVault", async () => { const c = requireClient(); const p = await c.pool(selectedMarket()); return c.approve(p.stock, p.vault, amount); }),
     depositToVault: params => action("Deposit into StockVault", () => requireClient().deposit(selectedMarket(), params.amount, params.lockDays)),
     withdrawFromVault: id => action("Withdraw position", () => requireClient().withdraw(id)),
     requestTradeQuote,

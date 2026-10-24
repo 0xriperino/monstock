@@ -29,8 +29,8 @@ const tabs = [
 
 const descriptions: Record<StockBackView, { title: string; description: string }> = {
   launchpad: { title: "Launchpad", description: "Launch a meme. Build a market. Share the fees." },
-  trading: { title: "Trading terminal", description: "Trade memes against MockSPYx on Monad Testnet." },
-  autovault: { title: "AutoVault", description: "Put your MockSPYx to work in StockVault." },
+  trading: { title: "Trading terminal", description: "Trade memes against your selected quote asset on Monad Testnet." },
+  autovault: { title: "AutoVault", description: "Put your selected quote asset to work in StockVault." },
   portfolio: { title: "Your portfolio", description: "Your tokens, holder rewards, and locked positions." },
 };
 
@@ -95,10 +95,16 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     </header>
 
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
+      {data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-quote-bar">
+        <label htmlFor="quote-asset">Pair asset</label>
+        <select id="quote-asset" aria-label="Pair asset" value={data.stockToken.id} disabled={busy} onChange={event => run(() => actions.selectQuoteAsset?.(event.target.value))}>
+          {data.quoteAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.symbol}</option>)}
+        </select><span>Testnet demo assets · Balances and rewards shown in {data.stockToken.symbol}</span>
+      </div>}
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
-      <div className="sb-testnet-strip"><ShieldCheck size={14} aria-hidden="true" /><span>Testnet environment</span><span className="sb-strip-divider" />MockSPYx is a test-only stock representation. No real stocks or funds.</div>
+      <div className="sb-testnet-strip"><ShieldCheck size={14} aria-hidden="true" /><span>Testnet environment</span><span className="sb-strip-divider" />{data.stockToken.symbol} is a test-only representation. No backing or issuer affiliation.</div>
       {view !== "launchpad" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
-        <span className="sb-badge"><span className="sb-dot sb-dot--purple" />MockSPYx markets</span>
+        <span className="sb-badge"><span className="sb-dot sb-dot--purple" />{data.stockToken.symbol} markets</span>
       </div>}
 
       {data.wallet.status !== "connected" ? <div className="sb-notice"><Wallet size={18} aria-hidden="true" /><div><strong>Connect to get started</strong><p>Explore the markets. Connect your wallet to trade, launch, or lock tokens.</p></div>
@@ -116,8 +122,8 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       {actionError && <div className="sb-notice sb-notice--error" role="alert"><CircleAlert size={18} aria-hidden="true" /><p>{actionError}</p></div>}
 
       {view === "launchpad" && <DiscoverView {...context} />}
-      {view === "trading" && <TradingView {...context} />}
-      {view === "autovault" && <AutoVaultView {...context} />}
+      {view === "trading" && <TradingView key={`${data.stockToken.id}:${data.selectedMarketId}`} {...context} />}
+      {view === "autovault" && <AutoVaultView key={`${data.stockToken.id}:${data.selectedMarketId}`} {...context} />}
       {view === "portfolio" && <PortfolioView {...context} />}
 
       <footer className="sb-footer"><span>StockBack <span className="sb-muted">/</span> Built on Monad</span><span><ArrowDownToLine size={13} aria-hidden="true" />1% trading fee <span className="sb-muted">·</span> 40% holders <span className="sb-muted">/</span> 10% vault <span className="sb-muted">/</span> 50% treasury</span></footer>

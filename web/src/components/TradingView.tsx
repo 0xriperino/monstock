@@ -61,26 +61,26 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
 
   return <div className="sb-stack">
     <section className="sb-market-header" aria-label="Selected market">
-      <div className="sb-token-cell"><TokenMark symbol={market.token.symbol} /><div><h2>{market.token.symbol}<span className="sb-muted"> / MockSPYx</span></h2><p>{market.token.name}</p></div></div>
+      <div className="sb-token-cell"><TokenMark symbol={market.token.symbol} /><div><h2>{market.token.symbol}<span className="sb-muted"> / {data.stockToken.symbol}</span></h2><p>{market.token.name}</p></div></div>
       <div className="sb-field sb-market-selector"><label htmlFor={`${id}-market`} className="sb-sr-only">Selected market</label><select id={`${id}-market`} value={market.id} disabled={busy} onChange={(event) => { setAmount(""); setQuoteError(null); ++quoteSequence.current; run(() => actions.selectMarket(event.target.value)); }}>
-        {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / MockSPYx</option>)}
+        {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / {data.stockToken.symbol}</option>)}
       </select></div>
     </section>
     <div className="sb-trading-grid">
       <div className="sb-stack">
         <section className="sb-stats sb-stats--three" aria-label="Pool information">
-          <Stat label="Estimated token price" unit="MockSPYx"><Amount value={market.estimatedPrice} digits={8} /></Stat>
-          <Stat label="Stock reserve" unit="MockSPYx"><Amount value={market.stockReserve} /></Stat>
+          <Stat label="Estimated token price" unit={`${data.stockToken.symbol}`}><Amount value={market.estimatedPrice} digits={8} /></Stat>
+          <Stat label="Stock reserve" unit={`${data.stockToken.symbol}`}><Amount value={market.stockReserve} /></Stat>
           <Stat label="Meme reserve" unit={market.token.symbol}><Amount value={market.memeReserve} /></Stat>
         </section>
         <Panel title="Holder rewards" aside={<Gift size={18} className="sb-accent" aria-hidden="true" />}>
-          <div className="sb-reward-main"><div><span className="sb-muted">Claimable balance</span><strong><Amount value={balanceReady ? market.claimableRewards : null} /><small>MockSPYx</small></strong></div>
+          <div className="sb-reward-main"><div><span className="sb-muted">Claimable balance</span><strong><Amount value={balanceReady ? market.claimableRewards : null} /><small>{data.stockToken.symbol}</small></strong></div>
             <Button disabled={!balanceReady || !positive(market.claimableRewards ?? "0", data.stockToken.decimals) || busy} onClick={() => run(() => actions.claimHolderRewards(market.id))}>Claim rewards</Button>
-          </div><p className="sb-panel-description">Token holders share 40% of each trading fee. Claimed MockSPYx goes to your wallet and can be locked in StockVault.</p>
+          </div><p className="sb-panel-description">Token holders share 40% of each trading fee. Claimed {data.stockToken.symbol} goes to your wallet and can be locked in StockVault.</p>
           <div className="sb-epoch"><div><Clock3 size={17} aria-hidden="true" /><div><strong>5-minute reward epoch</strong><span className="sb-muted">{seconds === 0 ? "Epoch ended. Settlement may be available." : "Time until the current epoch ends"}</span></div></div><strong className="sb-countdown" role="timer" aria-label="Time until epoch settlement" aria-live="off">{countdown}</strong></div>
           <div className="sb-panel-bottom"><span className="sb-muted">Settlement updates holder reward allocation.</span><Button variant="secondary" disabled={!ready || busy || seconds !== 0 || !market.epoch.canSettle} busy={market.epoch.isSettling} onClick={() => run(() => actions.settleEpoch(market.id))}>Settle epoch</Button></div>
         </Panel>
-        <Panel title="Your balances"><dl className="sb-details"><InfoRow label="MockSPYx"><Amount value={balanceReady ? data.wallet.stockBalance : null} /></InfoRow><InfoRow label={market.token.symbol}><Amount value={balanceReady ? market.walletBalance : null} /></InfoRow></dl><div className="sb-panel-bottom"><span className="sb-muted">Test tokens for testnet markets.</span><Button variant="ghost" disabled={!ready || !data.wallet.faucetAvailable || busy} onClick={() => run(actions.requestFaucet)}>Get test tokens<ArrowRight size={14} aria-hidden="true" /></Button></div></Panel>
+        <Panel title="Your balances"><dl className="sb-details"><InfoRow label={`${data.stockToken.symbol}`}><Amount value={balanceReady ? data.wallet.stockBalance : null} /></InfoRow><InfoRow label={market.token.symbol}><Amount value={balanceReady ? market.walletBalance : null} /></InfoRow></dl><div className="sb-panel-bottom"><span className="sb-muted">Test tokens for testnet markets.</span><Button variant="ghost" disabled={!ready || !data.wallet.faucetAvailable || busy} onClick={() => run(actions.requestFaucet)}>Get test tokens<ArrowRight size={14} aria-hidden="true" /></Button></div></Panel>
       </div>
 
       <Panel title="Swap tokens" className="sb-trade-panel" aside={<span className="sb-badge">1% fee</span>}>

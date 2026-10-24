@@ -1,0 +1,12 @@
+{
+  "chainId": 10143,
+  "assets": [
+    {
+      "id": "0x870c0f545b30267e023af89a7674c0aaf82ea92d",
+      "factory": "0x49c9241f7609add7e27c88ebaf2403a21f4ce50d",
+      "name": "Mock Stock",
+      "symbol": "MockSPYx",
+      "decimals": 18
+    }
+  ]
+}

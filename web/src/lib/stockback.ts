@@ -1,6 +1,6 @@
 import { BaseError, formatUnits, getAddress, isAddress, parseUnits, type Abi, type Address, type Chain, type PublicClient, type TransactionReceipt, type WalletClient } from "viem";
 import { factoryAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
-import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition } from "../types/ui";
+import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition, TokenInfo } from "../types/ui";
 
 export function errorMessage(error: unknown): string {
   return error instanceof BaseError ? error.shortMessage : error instanceof Error ? error.message : "The action could not complete.";
@@ -25,7 +25,8 @@ export function emptyData(networkName: string, message?: string): StockBackUIDat
   };
 }
 
-type Pool = { market: Address; meme: Address; vault: Address };
+export type QuoteAssetConfig = TokenInfo & { id: Address; factory: Address };
+type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo };
 type Pending = (label: string, hash?: `0x${string}`) => void;
 
 /** Browser-only integration; contracts and confirmed receipts are the source of truth. */
@@ -38,6 +39,7 @@ export class StockBackClient {
     readonly factory: Address,
     readonly wallet: () => Promise<WalletClient>,
     readonly onPending: Pending = () => {},
+    readonly assets: readonly QuoteAssetConfig[] = [{ id: stock, factory, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 }],
   ) {}
 
   async assertDeployment() {
@@ -50,16 +52,19 @@ export class StockBackClient {
   }
 
   async pools(): Promise<Pool[]> {
-    const markets = await this.client.readContract({ address: this.factory, abi: factoryAbi, functionName: "getMarkets" });
-    return Promise.all(markets.map(async market => {
-      const [meme, vault, stock] = await Promise.all([
-        this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
-        this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
-        this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
-      ]);
-      if (getAddress(stock) !== getAddress(this.stock)) throw new Error("Market uses an unexpected stock token.");
-      return { market, meme, vault };
+    const groups = await Promise.all(this.assets.map(async asset => {
+      const markets = await this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" });
+      return Promise.all(markets.map(async market => {
+        const [meme, vault, stock] = await Promise.all([
+          this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
+          this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
+          this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
+        ]);
+        if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
+        return { market, meme, vault, stock, stockToken: asset };
+      }));
     }));
+    return groups.flat();
   }
 
   async pool(id: string) {
@@ -71,7 +76,7 @@ export class StockBackClient {
 
   async snapshot(user?: Address, selectedId?: string | null): Promise<StockBackUIData> {
     await this.assertDeployment();
-    const pools = await this.pools();
+    const pools = (await this.pools()).filter(p => p.stock.toLowerCase() === this.stock.toLowerCase());
     const selected = pools.find(p => p.market.toLowerCase() === selectedId?.toLowerCase()) ?? pools[0];
     const block = await this.client.getBlock();
     const data = emptyData(this.chain.name);
@@ -109,14 +114,15 @@ export class StockBackClient {
       }
       totalHolder += rewards ?? 0n;
       return {
-        id: pool.market, token: { id: pool.meme, name, symbol, decimals: 18 }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
+        id: pool.market, stockToken: pool.stockToken, token: { id: pool.meme, name, symbol, decimals: 18 }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
         estimatedPrice: reserves[1] > 0n ? human(reserves[0] * 10n ** 18n / reserves[1]) : null,
         walletBalance: balance === null ? null : human(balance), claimableRewards: rewards === null ? null : human(rewards),
         stockApproval: stockAllowance === null ? unknownApproval : approval(stockAllowance), memeApproval: memeAllowance === null ? unknownApproval : approval(memeAllowance),
         epoch: { endsAt: Number(epoch) * 1000, canSettle: block.timestamp >= epoch, isSettling: false },
       } satisfies StockBackMarket;
     }));
-    data.stockToken.id = this.stock;
+    data.stockToken = this.assets.find(a => a.id.toLowerCase() === this.stock.toLowerCase()) ?? { ...data.stockToken, id: this.stock };
+    data.quoteAssets = [...this.assets];
     data.wallet = { ...data.wallet, status: user ? "connected" : "disconnected", address: user ?? null, stockBalance: stockBalance === null ? null : human(stockBalance), balancesStatus: "ready", faucetAvailable: Boolean(user && !claimed) };
     data.markets = markets;
     data.marketsStatus = "ready";
@@ -154,7 +160,7 @@ export class StockBackClient {
   async faucet() {
     const { account } = await this.signer();
     if (await this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "hasClaimed", args: [account.address] })) throw new Error("This wallet has already claimed the faucet.");
-    return this.send("Claim test MockSPYx", this.stock, stockAbi, "faucet");
+    return this.send(`Claim test ${this.assets.find(a => a.id.toLowerCase() === this.stock.toLowerCase())?.symbol ?? "quote tokens"}`, this.stock, stockAbi, "faucet");
   }
   async createCoin(name: string, symbol: string, liquidity: string) {
     if (!name.trim() || !symbol.trim()) throw new Error("Name and symbol are required.");
@@ -203,7 +209,7 @@ export class StockBackClient {
     const { account } = await this.signer();
     const amount = amountUnits(params.amount);
     const minimum = amountUnits(params.minimumOutput);
-    await this.checkSpend(params.side === "buy" ? this.stock : pool.meme, account.address, pool.market, amount);
+    await this.checkSpend(params.side === "buy" ? pool.stock : pool.meme, account.address, pool.market, amount);
     const output = await this.client.readContract({ address: pool.market, abi: marketAbi, functionName: params.side === "buy" ? "quoteBuy" : "quoteSell", args: [amount] });
     if (output < minimum) throw new Error("Market price moved beyond your slippage limit. Refresh the estimate.");
     const receipt = await this.send(params.side === "buy" ? "Buy meme tokens" : "Sell meme tokens", pool.market, marketAbi, params.side, [amount, minimum]);
@@ -227,7 +233,7 @@ export class StockBackClient {
     if (![30, 90, 180].includes(lockDays)) throw new Error("Choose a 30, 90, or 180 day lock.");
     const pool = await this.pool(id);
     const { account } = await this.signer();
-    await this.checkSpend(this.stock, account.address, pool.vault, amountUnits(amount));
+    await this.checkSpend(pool.stock, account.address, pool.vault, amountUnits(amount));
     return this.send("Deposit into StockVault", pool.vault, vaultAbi, "deposit", [amountUnits(amount), BigInt(lockDays)]);
   }
   async withdraw(positionId: string) {

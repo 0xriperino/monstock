@@ -16,9 +16,10 @@ export interface TokenInfo {
 export interface StockBackMarket {
   id: string;
   token: TokenInfo;
+  stockToken?: TokenInfo;
   stockReserve: TokenAmount;
   memeReserve: TokenAmount;
-  /** Estimated MockSPYx per one meme token. Null means unavailable. */
+  /** Estimated quote tokens per one meme token. Null means unavailable. */
   estimatedPrice: TokenAmount | null;
   walletBalance: TokenAmount | null;
   claimableRewards: TokenAmount | null;
@@ -42,7 +43,7 @@ export interface TokenApproval {
 export interface TradeRequest {
   marketId: string;
   side: TradeSide;
-  /** Exact input: MockSPYx for buy, meme tokens for sell. */
+  /** Exact input: quote tokens for buy, meme tokens for sell. */
   amount: TokenAmount;
   slippageBps: number;
 }
@@ -52,7 +53,7 @@ export interface TradeQuote extends TradeRequest {
   status: LoadStatus;
   outputAmount: TokenAmount | null;
   minimumOutput: TokenAmount | null;
-  /** Fee in MockSPYx on both buy and sell, as charged by MemeMarket. */
+  /** Fee in quote tokens on both buy and sell, as charged by MemeMarket. */
   feeAmount: TokenAmount | null;
   expiresAt: number;
   error?: string;
@@ -66,6 +67,7 @@ export interface ExecuteTradeParams extends TradeRequest {
 export interface CreateCoinParams {
   name: string;
   symbol: string;
+  stockTokenId?: string;
   initialStockLiquidity: TokenAmount;
 }
 
@@ -100,6 +102,7 @@ export interface StockBackUIData {
     balancesError?: string;
     faucetAvailable: boolean;
   };
+  quoteAssets?: TokenInfo[];
   stockToken: TokenInfo;
   markets: StockBackMarket[];
   marketsStatus: LoadStatus;
@@ -135,6 +138,7 @@ export interface StockBackUIData {
  * eligibility at execution time. Display guards do not replace contract checks.
  */
 export interface StockBackUIActions {
+  selectQuoteAsset?: (assetId: string) => MaybePromise;
   connectWallet: () => MaybePromise;
   switchNetwork: () => MaybePromise;
   requestFaucet: () => MaybePromise;

@@ -606,3 +606,9 @@
   .sb-share > p { margin: 5px 0 12px; }
   .sb-launch-dialog { padding: 22px; }
 }
+
+.sb-quote-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 20px; padding:14px 18px; border:1px solid #30283e; border-radius:12px; background:#171322; }
+.sb-quote-bar label { font-weight:600; font-size:14px; }
+.sb-quote-bar span { color:#a49aad; font-size:12px; }
+.sb-quote-bar select,.sb-field select { background:#211a30; color:#e9e1ff; border:1px solid #51416a; border-radius:8px; padding:10px 14px; font:inherit; }
+.sb-field select { width:100%; }
