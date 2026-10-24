@@ -59,3 +59,13 @@ These tests use isolated wallet/RPC fixtures against the local app, with no
 real transactions. They check connecting and switching networks inside the
 modal, preserved inputs, missing/rejected wallets, faucet access, unavailable
 balances, and disabled creation when input or funds are insufficient.
+
+### Swap regression checks
+
+With the same local app running on port 3101, run `npm run test:trading`.
+It checks debounced estimates, approval followed by buy/sell without a manual
+quote refresh, and estimate timeout/retry with late-response protection.
+The wallet, RPC, and receipts are isolated fixtures; no real transactions are
+submitted. `npm run test:client` checks that quoting a registered market does
+not depend on the health of other markets. Spending approval and a fresh quote
+are still required before a trade can be submitted.

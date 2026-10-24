@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useSwitchChain } from "wagmi";
 import { getWalletClient } from "wagmi/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ export function useStockBack() {
   const [transaction, setTransaction] = useState<StockBackUIData["transaction"]>({ status: "idle" });
   const locked = useRef(false);
   const quoteSequence = useRef(0);
-  const session = `${account.address ?? ""}:${account.chainId ?? ""}`;
+  const session = `${account.address ?? ""}:${account.chainId ?? ""}:${assetId}`;
   const activeSession = useRef(session);
   activeSession.current = session;
   useEffect(() => { setQuote(null); setTransaction({ status: "idle" }); quoteSequence.current++; }, [session]);
@@ -79,17 +79,22 @@ export function useStockBack() {
       throw new Error(errorMessage(error));
     } finally { locked.current = false; }
   }
-  async function requestTradeQuote(request: TradeRequest) {
+  const requestTradeQuote = useCallback(async (request: TradeRequest) => {
     const sequence = ++quoteSequence.current;
     const requestedSession = session;
     setQuote({ ...request, id: "loading", status: "loading", outputAmount: null, minimumOutput: null, feeAmount: null, expiresAt: 0 });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const next = await requireClient().quote(request);
+      if (!client) throw new Error("Contracts have not been deployed/configured for this network yet.");
+      const next = await Promise.race([
+        client.quote(request),
+        new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error("Estimate timed out. Refresh the estimate to retry.")), 15_000); }),
+      ]);
       if (sequence === quoteSequence.current && requestedSession === activeSession.current) setQuote(next);
     } catch (error) {
       if (sequence === quoteSequence.current && requestedSession === activeSession.current) setQuote({ ...request, id: "error", status: "error", outputAmount: null, minimumOutput: null, feeAmount: null, expiresAt: 0, error: errorMessage(error) });
-    }
-  }
+    } finally { clearTimeout(timeout); }
+  }, [client, session]);
   const actions: StockBackUIActions = {
     selectQuoteAsset: id => {
       if (locked.current) throw new Error("Complete the current wallet action first.");
@@ -110,7 +115,13 @@ export function useStockBack() {
         ? requireClient().launchCoin(params)
         : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity ?? "0");
     }),
-    selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
+    selectMarket: marketId => {
+      if (locked.current) throw new Error("Complete the current wallet action first.");
+      const market = data.markets.find(m => m.id.toLowerCase() === marketId.toLowerCase());
+      if (!market) throw new Error("Unknown market.");
+      if (market.stockToken) setAssetId(market.stockToken.id);
+      setSelectedId(marketId); setQuote(null); quoteSequence.current++;
+    },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
     approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),

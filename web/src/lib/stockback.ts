@@ -56,47 +56,60 @@ export class StockBackClient {
     if (!stockCode || !factoryCode || getAddress(stock) !== getAddress(this.stock)) throw new Error("Deployment addresses do not match deployed StockBack contracts.");
   }
 
-  async pools(stock?: Address): Promise<Pool[]> {
+  private async registeredMarkets(asset: QuoteAssetConfig) {
     const sources = [
       ...(this.launcher ? [{ address: this.launcher, bondingCurve: this.curveMode }] : []),
       ...this.legacyLaunchers.map(address => ({ address, bondingCurve: false })),
     ];
+    const [legacy, ...launched] = await Promise.all([
+      this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
+      ...sources.map(source => this.client.readContract({ address: source.address, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] })),
+    ]);
+    return [
+      ...legacy.map(market => ({ market, launcher: undefined as Address | undefined, bondingCurve: false })),
+      ...launched.flatMap((markets, index) => markets.map(market => ({ market, launcher: sources[index].address, bondingCurve: sources[index].bondingCurve }))),
+    ];
+  }
+
+  private async readPool(asset: QuoteAssetConfig, entry: { market: Address; launcher?: Address; bondingCurve: boolean }): Promise<Pool> {
+    const market = entry.market;
+    const [meme, vault, stock, feeBps] = await Promise.all([
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
+      entry.launcher ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
+    ]);
+    if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
+    if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
+    return { ...entry, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
+  }
+
+  async pools(stock?: Address): Promise<Pool[]> {
     const groups = await Promise.all(this.assets.filter(asset => !stock || asset.id.toLowerCase() === stock.toLowerCase()).map(async asset => {
-      const [legacy, ...launched] = await Promise.all([
-        this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
-        ...sources.map(source => this.client.readContract({ address: source.address, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] })),
-      ]);
-      const registered = [
-        ...legacy.map(market => ({ market, launcher: undefined as Address | undefined, bondingCurve: false })),
-        ...launched.flatMap((markets, index) => markets.map(market => ({ market, launcher: sources[index].address, bondingCurve: sources[index].bondingCurve }))),
-      ];
-      return Promise.all(registered.map(async entry => {
-        const market = entry.market;
-        const [meme, vault, stock, feeBps] = await Promise.all([
-          this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
-          this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
-          this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
-          entry.launcher ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
-        ]);
-        if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
-        if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
-        return { ...entry, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
-      }));
+      const registered = await this.registeredMarkets(asset);
+      return Promise.all(registered.map(entry => this.readPool(asset, entry)));
     }));
     return groups.flat();
   }
 
-  async pool(id: string) {
+  async pool(id: string): Promise<Pool> {
     if (!isAddress(id)) throw new Error("Invalid market.");
-    const pool = (await this.pools()).find(p => p.market.toLowerCase() === id.toLowerCase());
-    if (!pool) throw new Error("Market is not registered with this Factory.");
-    return pool;
+    // Resolve only the requested pool, including current curves and legacy launches.
+    // Unrelated markets must not delay or break a trade.
+    const assets = [...this.assets.filter(a => a.id.toLowerCase() === this.stock.toLowerCase()),
+      ...this.assets.filter(a => a.id.toLowerCase() !== this.stock.toLowerCase())];
+    for (const asset of assets) {
+      const entry = (await this.registeredMarkets(asset)).find(p => p.market.toLowerCase() === id.toLowerCase());
+      if (entry) return this.readPool(asset, entry);
+    }
+    throw new Error("Market is not registered with this Factory.");
   }
 
   async snapshot(user?: Address, selectedId?: string | null): Promise<StockBackUIData> {
     await this.assertDeployment();
-    const pools = await this.pools(this.stock);
-    const selected = pools.find(p => p.market.toLowerCase() === selectedId?.toLowerCase()) ?? pools[0];
+    const pools = await this.pools();
+    const selected = pools.find(p => p.stock.toLowerCase() === this.stock.toLowerCase() && p.market.toLowerCase() === selectedId?.toLowerCase())
+      ?? pools.find(p => p.stock.toLowerCase() === this.stock.toLowerCase());
     const block = await this.client.getBlock();
     const data = emptyData(this.chain.name);
     const [stockBalance, claimed] = user ? await Promise.all([
@@ -119,10 +132,10 @@ export class StockBackClient {
       const [balance, rewards, stockAllowance, memeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "pendingHolderRewards", args: [user] }),
-        this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "allowance", args: [user, pool.market] }),
+        this.client.readContract({ address: pool.stock, abi: stockAbi, functionName: "allowance", args: [user, pool.market] }),
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "allowance", args: [user, pool.market] }),
       ]) : [null, null, null, null];
-      if (user) {
+      if (user && pool.stock.toLowerCase() === this.stock.toLowerCase()) {
         const owned = await this.client.readContract({ address: pool.vault, abi: vaultAbi, functionName: "getPositions", args: [user] });
         await Promise.all(owned.filter(p => !p.withdrawn).map(async p => {
           const reward = await this.client.readContract({ address: pool.vault, abi: vaultAbi, functionName: "pendingRewards", args: [p.id] });
@@ -133,7 +146,7 @@ export class StockBackClient {
           positions.push({ id: `${pool.vault}:${p.id}`, principal: human(p.amount), lockDays: days, unlocksAt: Number(p.unlockAt) * 1000, earnedRewards: human(reward), canWithdraw: block.timestamp >= p.unlockAt, isWithdrawing: false });
         }));
       }
-      totalHolder += rewards ?? 0n;
+      if (pool.stock.toLowerCase() === this.stock.toLowerCase()) totalHolder += rewards ?? 0n;
       return {
         id: pool.market, stockToken: pool.stockToken, tradingFeeBps: pool.tradingFeeBps, bondingCurve: pool.bondingCurve, token: { id: pool.meme, name, symbol, decimals: 18, ...decodeMetadata(metadataJSON) }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
         estimatedPrice: (pricingReserves ?? reserves)[1] > 0n ? human((pricingReserves ?? reserves)[0] * 10n ** 18n / (pricingReserves ?? reserves)[1]) : null,

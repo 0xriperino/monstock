@@ -2,15 +2,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { decodeFunctionData, encodeFunctionResult, parseAbi, parseUnits } from 'viem';
+import { curveLauncherAbi, launcherAbi } from '../src/lib/abis.ts';
 
 // Isolated UI regression tests. The wallet and RPC are fixtures; no transaction
 // is signed, broadcast, or sent to a real network, and no user profile is opened.
 const url = process.env.E2E_URL ?? 'http://127.0.0.1:3101';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(url).hostname), 'Only a local app may be tested.');
 const deployment = JSON.parse(await readFile(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
-const launcher = JSON.parse(await readFile(new URL("../../contracts/out/StockBackLauncher.sol/StockBackLauncher.json",import.meta.url),"utf8"));
-const curveLauncher = JSON.parse(await readFile(new URL("../../contracts/out/BondingCurveLauncher.sol/BondingCurveLauncher.json",import.meta.url),"utf8"));
-const abi = [...curveLauncher.abi, ...launcher.abi, ...parseAbi([
+const abi = [...curveLauncherAbi, ...launcherAbi, ...parseAbi([
   'function stockToken() view returns (address)',
   'function getMarkets() view returns (address[])',
   'function balanceOf(address) view returns (uint256)',

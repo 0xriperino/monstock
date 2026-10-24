@@ -5,7 +5,7 @@ import { LaunchView } from "./LaunchView";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
-import { Button, QuoteAssetLogo, shortAddress } from "./ui";
+import { Button, shortAddress } from "./ui";
 import { PortfolioView } from "./overview-views";
 import { DiscoverView } from "./DiscoverView";
 import { TradingView } from "./TradingView";
@@ -103,12 +103,6 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     </header>
 
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
-      {view !== "launch" && data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-quote-bar">
-        <label htmlFor="quote-asset">Pair asset</label><QuoteAssetLogo token={data.stockToken} small />
-        <select id="quote-asset" aria-label="Pair asset" value={data.stockToken.id} disabled={busy} onChange={event => { const nextId = event.currentTarget.value; run(() => actions.selectQuoteAsset?.(nextId)); }}>
-          {data.quoteAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.symbol}</option>)}
-        </select><span>Testnet demo assets · Balances and rewards shown in {data.stockToken.symbol}</span>
-      </div>}
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
 
       {view !== "launchpad" && view !== "launch" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>

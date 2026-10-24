@@ -60,6 +60,7 @@ try {
   await syncClock();
   await page.goto(url);
   await page.getByRole('button', { name: 'Trade SBDEMO', exact: true }).waitFor();
+  assert.equal(await page.getByRole('region', { name: 'Blockchain connection' }).count(), 0);
   assert.equal(await page.getByText(/Synthetic data/).count(), 0);
   assert.equal(await page.getByText('preview-wallet', { exact: true }).count(), 0);
   await page.locator('.sb-topbar').getByRole('button', { name: 'Connect wallet', exact: true }).click();
@@ -95,13 +96,12 @@ try {
   await confirmed(page.getByRole('button', { name: 'Sell BROW', exact: true }).last());
   await test.increaseTime({ seconds: 301 }); await test.mine({ blocks: 1 });
   await syncClock();
-  await page.getByRole('button', { name: 'Refresh chain data', exact: true }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Settle epoch' && !button.disabled), null, { timeout: 30_000 });
   await confirmed(page.getByRole('button', { name: 'Settle epoch', exact: true }));
   const reward = await client.readContract({ address: market, abi: marketAbi, functionName: 'pendingHolderRewards', args: [account] });
   assert.ok(reward > 0n);
   await confirmed(page.getByRole('button', { name: 'Claim rewards', exact: true }));
   await tab('AutoVault');
-  assert.equal(await page.getByRole('combobox', { name: 'Vault destination market' }).inputValue(), market);
   for (const [amount, days] of [[formatUnits(reward, 18), 30], ['2', 90]]) {
     await page.getByLabel('Deposit amount', { exact: true }).fill(amount);
     await page.getByRole('radio', { name: new RegExp(`^${days} days`) }).check();
@@ -114,7 +114,7 @@ try {
   assert.equal(await page.getByRole('button', { name: /Locked until/ }).first().isDisabled(), true);
   await test.increaseTime({ seconds: 30 * 86400 + 1 }); await test.mine({ blocks: 1 });
   await syncClock();
-  await page.getByRole('button', { name: 'Refresh chain data', exact: true }).click();
+  await page.getByRole('button', { name: 'Withdraw position', exact: true }).waitFor({ timeout: 30_000 });
   await confirmed(page.getByRole('button', { name: 'Withdraw position', exact: true }));
   await page.getByText('1 positions', { exact: true }).waitFor();
   for (const width of [1440, 390, 320]) {

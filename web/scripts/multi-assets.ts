@@ -89,7 +89,8 @@ for (const asset of catalog.assets.filter(a => !live || a.symbol === "NVDAX")) {
     await c.deposit(pool.market, "10", 30);
     const snap = await c.snapshot(address);
     assert.equal(snap.stockToken.symbol, asset.symbol);
-    assert.equal(snap.markets.length, 1);
+    assert.equal(snap.markets.filter(m => m.stockToken?.id.toLowerCase() === asset.id.toLowerCase()).length, 1);
+    assert.equal(snap.markets.length, (await c.pools()).length);
     assert.equal(snap.wallet.stockBalance, "8890");
     assert.equal(snap.vault.totalLockedPrincipal, "10");
     assert.equal(snap.vault.positions.length, 1);
