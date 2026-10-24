@@ -10,6 +10,8 @@ const url = process.env.E2E_URL ?? 'http://127.0.0.1:3101';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(url).hostname));
 const d = JSON.parse(await readFile(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
 const { stockToken: stock, factory, market, memeToken: meme, vault } = d.contracts;
+const catalog = JSON.parse(await readFile(new URL('../../shared/assets.json', import.meta.url), 'utf8'));
+const quoteSymbol = catalog.assets.find(asset => asset.id.toLowerCase() === stock.toLowerCase()).symbol;
 const { address: launcher } = JSON.parse(await readFile(new URL('../../shared/launcher.json', import.meta.url), 'utf8'));
 const account = '0x0000000000000000000000000000000000000011';
 const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
@@ -118,7 +120,7 @@ try {
   assert.deepEqual(quotes, [{ side: 'quoteBuy', amount: parseUnits('3000', 18).toString() }], 'Typing an amount must request only its final quote, not one RPC run per character.');
   assert.equal(await page.getByRole('button', { name: 'Buy SBDEMO', exact: true }).last().isDisabled(), true);
   console.log('PASS: typing is debounced; a quote is shown; trading waits for approval.');
-  await confirm(await enabled('Approve MockSPYx'));
+  await confirm(await enabled(`Approve ${quoteSymbol}`));
   await confirm(await enabled('Buy SBDEMO'));
   console.log('PASS: approval automatically refreshes the quote; buy needs no manual Refresh.');
   await page.getByRole('button', { name: 'Sell SBDEMO', exact: true }).first().click();
