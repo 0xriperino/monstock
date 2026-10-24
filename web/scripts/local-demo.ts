@@ -106,11 +106,11 @@ const demo = new StockBackClient(client, chain, demoStock, demoFactory, async ()
 await record("Demo creator faucet", () => demo.faucet());
 await record("Demo initial market", () => demo.createCoin("StockBack Demo", "SBDEMO", "1000"));
 const demoPool = (await demo.pools())[0];
-const rewardFactory = await deploy("RewardFactory", [treasury]);
-const launcher = await deploy("StockBackLauncher", [[demoFactory], rewardFactory]);
+const rewardFactory = await deploy("BondingCurveFactory", [treasury]);
+const launcher = await deploy("BondingCurveLauncher", [[demoFactory], rewardFactory]);
 const contracts = { launcher, stockToken: demoStock, factory: demoFactory, memeToken: demoPool.meme, market: demoPool.market, vault: demoPool.vault };
 await writeFile(new URL("shared/deployments.local.json", root), JSON.stringify({ chainId: 31337, network: chain.name, status: "deployed_locally", rpcUrl, contracts, accounts: { creator, trader, treasury }, transactions: receipts }, null, 2) + "\n");
-await writeFile(new URL("web/.env.local", root), `NEXT_PUBLIC_USE_ANVIL=true\nNEXT_PUBLIC_RPC_URL=${rpcUrl}\nNEXT_PUBLIC_STOCK_TOKEN_ADDRESS=${demoStock}\nNEXT_PUBLIC_FACTORY_ADDRESS=${demoFactory}\nNEXT_PUBLIC_LAUNCHER_ADDRESS=${launcher}\n`);
+await writeFile(new URL("web/.env.local", root), `NEXT_PUBLIC_USE_ANVIL=true\nNEXT_PUBLIC_RPC_URL=${rpcUrl}\nNEXT_PUBLIC_STOCK_TOKEN_ADDRESS=${demoStock}\nNEXT_PUBLIC_FACTORY_ADDRESS=${demoFactory}\nNEXT_PUBLIC_LAUNCHER_ADDRESS=${launcher}\nNEXT_PUBLIC_BONDING_CURVE=true\n`);
 // Empty local blocks keep chain-time eligibility current while users wait for an epoch.
 // This mines blocks only; settlement still requires a user's transaction.
 await test.setIntervalMining({ interval: 1 });

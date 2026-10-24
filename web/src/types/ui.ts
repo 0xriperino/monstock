@@ -23,6 +23,7 @@ export interface StockBackMarket {
   token: TokenInfo;
   stockToken?: TokenInfo;
   tradingFeeBps?: number;
+  bondingCurve?: boolean;
   stockReserve: TokenAmount;
   memeReserve: TokenAmount;
   /** Estimated quote tokens per one meme token. Null means unavailable. */
@@ -31,6 +32,7 @@ export interface StockBackMarket {
   claimableRewards: TokenAmount | null;
   stockApproval: TokenApproval;
   memeApproval: TokenApproval;
+  nativeMemeApproval?: TokenApproval;
   epoch: {
     /** Unix timestamp in milliseconds; always supplied by integration. */
     endsAt: number;
@@ -47,6 +49,8 @@ export interface TokenApproval {
 }
 
 export interface TradeRequest {
+  paymentAsset?: "quote" | "native";
+  amountMode?: "input" | "tokens";
   marketId: string;
   side: TradeSide;
   /** Exact input: quote tokens for buy, meme tokens for sell. */
@@ -62,6 +66,10 @@ export interface TradeQuote extends TradeRequest {
   /** Fee in quote tokens on both buy and sell, as charged by MemeMarket. */
   feeAmount: TokenAmount | null;
   expiresAt: number;
+  paymentAmount?: TokenAmount;
+  maximumInput?: TokenAmount;
+  quoteAmount?: TokenAmount;
+  chainDeadline?: string;
   error?: string;
 }
 
@@ -74,8 +82,9 @@ export interface CreateCoinParams {
   name: string;
   symbol: string;
   stockTokenId?: string;
-  initialStockLiquidity: TokenAmount;
+  initialStockLiquidity?: TokenAmount;
   devBuyAmount?: TokenAmount;
+  paymentAsset?: "quote" | "native";
   tradingFeeBps?: 100 | 300;
   metadata?: { image?: string; website?: string; twitter?: string; telegram?: string };
 }
@@ -107,16 +116,16 @@ export interface StockBackUIData {
     networkStatus: "correct" | "wrong" | "unknown";
     networkName: string;
     stockBalance: TokenAmount | null;
+    nativeBalance?: TokenAmount | null;
     balancesStatus: LoadStatus;
     balancesError?: string;
     faucetAvailable: boolean;
   };
   launchAvailable?: boolean;
+  nativeTradingAvailable?: boolean;
   quoteAssets?: TokenInfo[];
   stockToken: TokenInfo;
   markets: StockBackMarket[];
-  /** Cross-asset discovery; trading and portfolio keep the selected quote scope. */
-  discovery?: { markets: StockBackMarket[]; status: LoadStatus; error?: string };
   marketsStatus: LoadStatus;
   marketsError?: string;
   selectedMarketId: string | null;
@@ -156,9 +165,8 @@ export interface StockBackUIActions {
   requestFaucet: () => MaybePromise;
   createCoin: (params: CreateCoinParams) => MaybePromise;
   selectMarket: (marketId: string) => MaybePromise;
-  selectDiscoveryMarket?: (marketId: string) => MaybePromise;
   approveStock: (params: { marketId: string; amount: TokenAmount }) => MaybePromise;
-  approveMeme: (params: { marketId: string; amount: TokenAmount }) => MaybePromise;
+  approveMeme: (params: { marketId: string; amount: TokenAmount; paymentAsset?: "quote" | "native" }) => MaybePromise;
   buy: (params: ExecuteTradeParams) => MaybePromise;
   sell: (params: ExecuteTradeParams) => MaybePromise;
   settleEpoch: (marketId: string) => MaybePromise;

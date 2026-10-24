@@ -11,7 +11,7 @@ const test=createTestClient({mode:"anvil",transport:http(deployment.rpcUrl)});
 const checkpoint=await test.snapshot();
 const account=(await createWalletClient({transport:http(deployment.rpcUrl)}).getAddresses())[4];
 const stockAbi=JSON.parse(await readFile(new URL('../../contracts/out/MockStock.sol/MockStock.json',import.meta.url),'utf8')).abi;
-const launcherAbi=JSON.parse(await readFile(new URL('../../contracts/out/StockBackLauncher.sol/StockBackLauncher.json',import.meta.url),'utf8')).abi;
+const launcherAbi=JSON.parse(await readFile(new URL('../../contracts/out/BondingCurveLauncher.sol/BondingCurveLauncher.json',import.meta.url),'utf8')).abi;
 const launcher=JSON.parse(await readFile(new URL('../../shared/launcher.local.json',import.meta.url),'utf8')).address;
 const marketAbi=JSON.parse(await readFile(new URL('../../contracts/out/MemeMarket.sol/MemeMarket.json',import.meta.url),'utf8')).abi;
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
@@ -55,18 +55,21 @@ try {
   await dialog.getByRole('group',{name:'Launch quote asset',exact:true}).getByRole('button').filter({hasText:asset.symbol}).click();
   await dialog.getByLabel('Token name',{exact:true}).fill('UI '+asset.symbol);
   await dialog.getByLabel('Symbol',{exact:true}).fill('UI'+index);
-  await dialog.getByLabel('Initial stock liquidity',{exact:true}).fill('100');
   console.log('Waiting faucet',asset.symbol); await confirmed(dialog.getByRole('button',{name:'Get test '+asset.symbol,exact:true})); console.log('Faucet confirmed');
   await confirmed(dialog.getByRole('button',{name:'Launch token',exact:true}));
   const pools=await client.readContract({address:launcher,abi:launcherAbi,functionName:'getMarkets',args:[asset.id]});
   assert.ok(pools.length>=1);
   const quote=await client.readContract({address:pools[pools.length-1],abi:marketAbi,functionName:'stockToken'});
   assert.equal(quote.toLowerCase(),asset.id.toLowerCase());
-  assert.equal(await client.readContract({address:asset.id,abi:stockAbi,functionName:'balanceOf',args:[account]}),parseEther('9900'));
+  assert.equal(await client.readContract({address:asset.id,abi:stockAbi,functionName:'balanceOf',args:[account]}),parseEther('10000'));
   console.log('PASS browser launch/faucet/pair',asset.symbol);
  }
  await dialog.getByRole('button',{name:'Back to discover'}).click();
- await page.getByRole('combobox',{name:'Pair asset',exact:true}).selectOption({label: catalog.assets[1].symbol});
+ assert.equal(await page.getByRole('combobox',{name:'Pair asset',exact:true}).count(), 0);
+ for (const index of catalog.assets.keys()) {
+  await page.getByRole('button',{name:`Trade UI${index}`,exact:true}).waitFor();
+  assert.ok((await page.getByRole('button',{name:`Trade UI${index}`,exact:true}).innerText()).includes(catalog.assets[index].symbol));
+ }
  await page.getByRole('button',{name:'Trade UI1',exact:true}).click();
  await page.getByLabel('You pay',{exact:true}).fill('10');
  await page.getByText('Estimate ready',{exact:true}).waitFor();

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useSwitchChain } from "wagmi";
 import { getWalletClient } from "wagmi/actions";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TransactionReceipt, WalletClient } from "viem";
 import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } from "../types/ui";
-import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress } from "../lib/chain";
+import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode, nativeRouterAddress } from "../lib/chain";
+import { optionalUnits } from "../lib/launch";
 import { emptyData, errorMessage, StockBackClient } from "../lib/stockback";
+import { marketPlaceholder } from "../lib/market-placeholder";
 
 export function useStockBack() {
   const account = useAccount();
@@ -30,42 +32,36 @@ export function useStockBack() {
     publicClient, chain, asset.id, asset.factory,
     async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
     (label, hash) => { if (activeSession.current === session) setTransaction({ status: "pending", label, hash, explorerUrl: hash && chain.blockExplorers ? `${chain.blockExplorers.default.url}/tx/${hash}` : undefined }); },
-    quoteAssets, launcherAddress,
+    quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode, nativeRouterAddress,
   ) : null, [config, session, asset]);
 
   const snapshot = useQuery({
     queryKey: ["stockback", chain.id, assetId, account.address, selectedId],
     queryFn: () => client!.snapshot(account.address, selectedId),
+    placeholderData: previous => marketPlaceholder(previous, asset, selectedId),
     enabled: Boolean(client), refetchInterval: 15_000,
   });
   const unavailable = "Contracts have not been deployed/configured for this network yet.";
-  const otherAssets = quoteAssets.filter(item => item.id.toLowerCase() !== assetId.toLowerCase());
-  const discoveryQueries = useQueries({ queries: otherAssets.map(item => ({
-    queryKey: ["stockback", chain.id, item.id, account.address, null],
-    queryFn: () => new StockBackClient(publicClient, chain, item.id, item.factory,
-      async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
-      () => {}, quoteAssets, launcherAddress).snapshot(account.address),
-    refetchInterval: 15_000,
-  })) });
   // Never reuse another account's cached financial values, even during reconnect.
-  const data: StockBackUIData = snapshot.error ? emptyData(chain.name, errorMessage(snapshot.error))
-    : snapshot.data ? { ...snapshot.data, wallet: { ...snapshot.data.wallet }, vault: { ...snapshot.data.vault } }
+  const data: StockBackUIData = snapshot.data ? { ...snapshot.data, wallet: { ...snapshot.data.wallet }, vault: { ...snapshot.data.vault } }
+    : snapshot.error ? emptyData(chain.name, errorMessage(snapshot.error))
     : emptyData(chain.name, deploymentReady ? undefined : unavailable);
+  if (snapshot.error) {
+    data.wallet.stockBalance = null;
+    data.wallet.balancesStatus = "error";
+    data.wallet.balancesError = errorMessage(snapshot.error);
+    data.vault.approval = { status: "unknown", allowance: null };
+    data.vault.positionsStatus = "error";
+  }
   data.wallet.status = connecting || account.status === "connecting" || account.status === "reconnecting" ? "connecting" : account.isConnected ? "connected" : "disconnected";
   data.wallet.address = account.address ?? null;
   data.wallet.networkStatus = !account.isConnected ? "unknown" : account.chainId === chain.id ? "correct" : "wrong";
   data.launchAvailable = Boolean(launcherAddress);
+  data.nativeTradingAvailable = Boolean(nativeRouterAddress);
   data.quoteAssets = quoteAssets;
   if (asset) data.stockToken = asset;
   data.tradeQuote = quote;
   data.transaction = transaction;
-  const discoverySnapshots = [snapshot, ...discoveryQueries];
-  const discoveryFailure = discoverySnapshots.find(result => result.error);
-  data.discovery = {
-    markets: discoverySnapshots.flatMap(result => result.data?.markets ?? []),
-    status: discoveryFailure ? "error" : discoverySnapshots.some(result => !result.data) ? "loading" : "ready",
-    error: discoveryFailure ? errorMessage(discoveryFailure.error) : undefined,
-  };
 
   function requireClient() {
     if (!client) throw new Error(unavailable);
@@ -88,7 +84,10 @@ export function useStockBack() {
         : { status: "idle" });
       setQuote(null);
       quoteSequence.current++;
-      await queries.invalidateQueries({ queryKey: ["stockback", chain.id] });
+      // Only fresh financial state holds the wallet-action lock. A long first
+      // chart-history scan must never block another approval, trade or launch.
+      await queries.invalidateQueries({ queryKey: ["stockback", chain.id, assetId, account.address, selectedId], exact: true });
+      void queries.invalidateQueries({ predicate: query => query.queryKey[0] === "stockback" && query.queryKey[1] === chain.id && query.queryKey[2] === "activity" }, { cancelRefetch: false });
     } catch (error) {
       if (startedSession === activeSession.current) setTransaction({ status: "error", label, message: errorMessage(error) });
       throw new Error(errorMessage(error));
@@ -125,20 +124,21 @@ export function useStockBack() {
     requestFaucet: () => action(`Claim test ${data.stockToken.symbol}`, () => requireClient().faucet()),
     createCoin: params => action("Create coin", () => {
       if (params.stockTokenId && params.stockTokenId.toLowerCase() !== assetId.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+      if (params.paymentAsset === "native" && optionalUnits(params.devBuyAmount ?? "0") > 0n) return requireClient().launchCurveWithMON(params);
+      if (bondingCurveMode) return requireClient().launchCurveCoin(params);
       return params.metadata !== undefined || params.devBuyAmount !== undefined
         ? requireClient().launchCoin(params)
-        : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
+        : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity ?? "0");
     }),
-    selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
-    selectDiscoveryMarket: marketId => {
+    selectMarket: marketId => {
       if (locked.current) throw new Error("Complete the current wallet action first.");
-      const market = data.discovery?.markets.find(item => item.id.toLowerCase() === marketId.toLowerCase());
-      const quoteAsset = market?.stockToken;
-      if (!market || !quoteAsset || !quoteAssets.some(item => item.id.toLowerCase() === quoteAsset.id.toLowerCase())) throw new Error("Unknown market.");
-      setAssetId(quoteAsset.id); setSelectedId(market.id); setQuote(null); quoteSequence.current++;
+      const market = data.markets.find(m => m.id.toLowerCase() === marketId.toLowerCase());
+      if (!market) throw new Error("Unknown market.");
+      if (market.stockToken) setAssetId(market.stockToken.id);
+      setSelectedId(marketId); setQuote(null); quoteSequence.current++;
     },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
-    approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
+    approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); const spender = params.paymentAsset === "native" ? c.nativeRouter : p.market; if (!spender) throw new Error("MON payments are not configured."); return c.approve(p.meme, spender, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     sell: params => action("Sell meme tokens", () => { if (params.side !== "sell") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     settleEpoch: id => action("Settle epoch", () => requireClient().settle(id)),

@@ -1,9 +1,14 @@
 {
   "chainId": 10143,
-  "address": "0x553fea09198095a8f72b8051085e6dc7af7da12c",
-  "hash": "0x9b30fc305e87acad70c50acecc97c80d2952b3f7e89e9226db75dbbfa3ff3615",
-  "rewardFactory": "0xddeeb63ab1f8d95f72eb446307dd23da3caf7290",
-  "rewardFactoryHash": "0x786a48fef044fee9c64496133503d9d74c178588418447e30e2ceec0d89990eb",
+  "model": "bonding-curve",
+  "virtualQuoteReserve": "1000",
+  "legacyLaunchers": [
+    "0x553fea09198095a8f72b8051085e6dc7af7da12c"
+  ],
+  "address": "0x5441b3b05c71c89313950129c215e0cf15064551",
+  "hash": "0x2bd3f83a1b04798b22f355d27c047544e21d151a0268a907344aa93ffd649e39",
+  "rewardFactory": "0xc3b69b5003358662686c8f2e55cd263abe4b50f2",
+  "rewardFactoryHash": "0x989ea40f85861c0e5346c031917ecb20bcf54bdb482b4ff8432db6229d165013",
   "treasury": "0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C",
   "factories": [
     "0x49c9241f7609add7e27c88ebaf2403a21f4ce50d",

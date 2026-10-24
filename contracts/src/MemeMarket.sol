@@ -26,8 +26,8 @@ contract MemeMarket is ReentrancyGuard {
     address public immutable factory;
     address public vault;
     uint256 public nextEpochAt;
-    uint256 private _stockReserve;
-    uint256 private _memeReserve;
+    uint256 internal _stockReserve;
+    uint256 internal _memeReserve;
 
     uint256 public tradingFeeBps = 100;
     uint256 public pendingHolderFees;
@@ -58,7 +58,7 @@ contract MemeMarket is ReentrancyGuard {
         _;
     }
 
-    function initialize(address vault_, uint256 stockLiquidity) external {
+    function initialize(address vault_, uint256 stockLiquidity) external virtual {
         require(msg.sender == factory, "Factory only");
         require(vault == address(0), "Already initialized");
         require(vault_.code.length != 0 && stockLiquidity != 0, "Invalid liquidity or vault");
@@ -75,13 +75,13 @@ contract MemeMarket is ReentrancyGuard {
         return (_stockReserve, _memeReserve);
     }
 
-    function quoteBuy(uint256 stockIn) public view initialized returns (uint256) {
+    function quoteBuy(uint256 stockIn) public view virtual initialized returns (uint256) {
         uint256 net = stockIn - Math.mulDiv(stockIn, tradingFeeBps, 10_000);
         return Math.mulDiv(_memeReserve, net, _stockReserve + net);
     }
 
-    function quoteSell(uint256 memeIn) public view initialized returns (uint256) {
-        uint256 gross = Math.mulDiv(_stockReserve, memeIn, _memeReserve + memeIn);
+    function quoteSell(uint256 memeIn) public view virtual initialized returns (uint256) {
+        uint256 gross = _grossSell(memeIn);
         return gross - Math.mulDiv(gross, tradingFeeBps, 10_000);
     }
 
@@ -100,7 +100,7 @@ contract MemeMarket is ReentrancyGuard {
 
     function sell(uint256 memeIn, uint256 minStockOut) external nonReentrant initialized {
         require(memeIn != 0, "Zero input");
-        uint256 gross = Math.mulDiv(_stockReserve, memeIn, _memeReserve + memeIn);
+        uint256 gross = _grossSell(memeIn);
         uint256 fee = Math.mulDiv(gross, tradingFeeBps, 10_000);
         uint256 amountOut = gross - fee;
         require(amountOut != 0 && amountOut >= minStockOut, "Slippage or zero output");
@@ -110,6 +110,10 @@ contract MemeMarket is ReentrancyGuard {
         memeToken.safeTransferFrom(msg.sender, address(this), memeIn);
         stockToken.safeTransfer(msg.sender, amountOut);
         emit Swap(msg.sender, false, memeIn, amountOut, fee);
+    }
+
+    function _grossSell(uint256 memeIn) internal view virtual returns (uint256) {
+        return Math.mulDiv(_stockReserve, memeIn, _memeReserve + memeIn);
     }
 
     /// @dev Per-trade allocation floors holder/vault shares; remaining wei go to treasury.

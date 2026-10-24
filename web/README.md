@@ -69,3 +69,44 @@ The wallet, RPC, and receipts are isolated fixtures; no real transactions are
 submitted. `npm run test:client` checks that quoting a registered market does
 not depend on the health of other markets. Spending approval and a fresh quote
 are still required before a trade can be submitted.
+
+## Live trading terminal
+
+The terminal uses TradingView Lightweight Charts 5.2 for candlesticks, volume,
+crosshair and touch/mouse navigation. Prices and volume are denominated in each
+market's quote asset, not USD. Confirmed `Swap` events produce OHLC candles;
+ERC20 `Transfer` history produces the wallet-holder rankings (pool inventory is
+excluded). FDV uses verified supply and the current pool/curve price.
+
+Activity refreshes every five seconds, two blocks behind the chain head. The
+initial scan starts at token deployment and checkpoints in browser storage;
+subsequent reads overlap the last 16 blocks to handle short reorganizations.
+The public RPC's 100-block log limit can make the first scan of older markets
+slow. No partial holder rankings are displayed. Transient errors retain the last
+verified snapshot and show the sync failure. New tokens get their first candle
+when their first swap is confirmed.
+
+Run `npm run test:market` for event aggregation and reorg tests. With the dev app
+running on port 3111, run `npm run test:terminal` for isolated browser/RPC fixture
+tests (or set `E2E_URL` to another local port). No transactions are broadcast.
+
+TradingView Lightweight Charts is licensed under Apache-2.0. The chart retains
+its TradingView attribution and link. TradingView Lightweight Charts™,
+Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
+
+## Loading performance
+
+Contract reads are combined through Monad's canonical Multicall3 contract.
+Verified pool identity and immutable token metadata are shared across sessions;
+registry lists are cached for 10 seconds and invalidated immediately after a
+confirmed launch. Prices, reserves, balances and allowances are refreshed.
+
+Changing markets keeps the public catalog visible while fresh account and vault
+state loads. Placeholder data never includes another selection's spending
+allowances or wallet balances. Post-transaction financial refreshes run separately
+from chart history, so a long initial history scan cannot hold the action lock.
+
+The public Monad latest-state RPC fails over to dRPC on transport/provider errors.
+Set `NEXT_PUBLIC_FALLBACK_RPC_URL` to choose another backup. Historical event reads
+keep their own source because archive support differs between providers.
+Run `npm run test:loading` for cache, account-isolation and RPC fallback tests.

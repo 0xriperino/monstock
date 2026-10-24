@@ -64,6 +64,7 @@ test("selected-asset legacy and launcher quotes preserve their 1% and 3% fees", 
   const request = { marketId: market, side: "buy" as const, amount: "10", slippageBps: 50 };
   assert.equal((await client.quote(request)).feeAmount, "0.1");
   launched = true;
+  client.invalidateCatalog();
   assert.equal((await client.quote(request)).feeAmount, "0.3");
   const pool = await client.pool(market);
   assert.equal(pool.stock, stock);

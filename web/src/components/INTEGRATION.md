@@ -69,3 +69,17 @@ The checkout had no package manifest, app routes, or existing lint/build command
 - Visual review covered the four viewport sizes. A reserve wrapping at 320px was corrected with stacked financial stats; the review scored the fix resolved.
 
 Integration still requires Developer 4’s routes/providers, installed host dependencies, wallet/network/faucet callbacks, chain data, amount-specific allowances, quote service, and receipt-driven transaction state. No end-to-end on-chain transaction was performed.
+
+
+### Bonding curve launches
+
+New launches use the bonding curve launcher and require no initial quote liquidity. `initialStockLiquidity` is retained only for legacy pool integrations. With `devBuyAmount` set to zero, creation does not request ERC20 approval or spend quote tokens; native network gas still applies. Optional dev buys use the same launch-time 1% or 3% trading fee and are atomic with creation.
+
+For `market.bondingCurve === true`, `stockReserve` is real quote backing, excluding fees and holder liabilities. The estimated price and execution quotes use virtual pricing reserves. Virtual reserves must never be displayed as wallet balances, real backing or withdrawable liquidity. Existing pool markets and earlier launchers remain discoverable with their original metadata and fee rates.
+
+
+### Native MON payments
+
+Set `paymentAsset: "native"` for routed trades. For a buy, `amountMode: "input"` means a MON budget and `amountMode: "tokens"` means the requested meme quantity. Quantity quotes include `paymentAmount` and `maximumInput` in MON; unused maximum input is refunded atomically. Native sells take meme input and publish output/minimum output in MON. `feeAmount` remains denominated in the market's quote token.
+
+Read `wallet.nativeBalance` for MON funding checks and `market.nativeMemeApproval` for native sell approvals. Buy routes do not request quote-token approval. `CreateCoinParams.paymentAsset: "native"` routes a positive dev buy through the native launcher; `devBuyAmount` still carries the underlying quote amount. A zero dev buy keeps the normal zero-funding launch path. Router transaction logs and `creatorOf` retain the original creator for forwarded launches.
