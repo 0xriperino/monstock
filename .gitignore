@@ -20,3 +20,4 @@ web/.env*
 !web/.env.example
 
 shared/asset-local.json
+shared/launcher.local.json

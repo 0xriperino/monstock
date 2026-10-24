@@ -1,7 +1,7 @@
 /** Human-readable decimal strings, never wei or JS floating point amounts. */
 export type TokenAmount = string;
 export type MaybePromise<T = void> = T | Promise<T>;
-export type StockBackView = "launchpad" | "trading" | "autovault" | "portfolio";
+export type StockBackView = "launchpad" | "launch" | "trading" | "autovault" | "portfolio";
 export type LoadStatus = "loading" | "ready" | "error";
 export type LockDays = 30 | 90 | 180;
 export type TradeSide = "buy" | "sell";
@@ -11,12 +11,17 @@ export interface TokenInfo {
   name: string;
   symbol: string;
   decimals: number;
+  image?: string;
+  website?: string;
+  twitter?: string;
+  telegram?: string;
 }
 
 export interface StockBackMarket {
   id: string;
   token: TokenInfo;
   stockToken?: TokenInfo;
+  tradingFeeBps?: number;
   stockReserve: TokenAmount;
   memeReserve: TokenAmount;
   /** Estimated quote tokens per one meme token. Null means unavailable. */
@@ -69,6 +74,9 @@ export interface CreateCoinParams {
   symbol: string;
   stockTokenId?: string;
   initialStockLiquidity: TokenAmount;
+  devBuyAmount?: TokenAmount;
+  tradingFeeBps?: 100 | 300;
+  metadata?: { image?: string; website?: string; twitter?: string; telegram?: string };
 }
 
 export interface DepositToVaultParams {
@@ -102,6 +110,7 @@ export interface StockBackUIData {
     balancesError?: string;
     faucetAvailable: boolean;
   };
+  launchAvailable?: boolean;
   quoteAssets?: TokenInfo[];
   stockToken: TokenInfo;
   markets: StockBackMarket[];

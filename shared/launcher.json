@@ -1,0 +1,15 @@
+{
+  "chainId": 10143,
+  "address": "0x553fea09198095a8f72b8051085e6dc7af7da12c",
+  "hash": "0x9b30fc305e87acad70c50acecc97c80d2952b3f7e89e9226db75dbbfa3ff3615",
+  "rewardFactory": "0xddeeb63ab1f8d95f72eb446307dd23da3caf7290",
+  "rewardFactoryHash": "0x786a48fef044fee9c64496133503d9d74c178588418447e30e2ceec0d89990eb",
+  "treasury": "0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C",
+  "factories": [
+    "0x49c9241f7609add7e27c88ebaf2403a21f4ce50d",
+    "0x5500d920cf8973713651c4b9f101a4120254d5ea",
+    "0xb1eda0ba34b402101a4a7cfedc1c066b1bd166af",
+    "0xd156ec29e88e6031856855b1d08741198528658c",
+    "0x268553ac8d0c1f0ade056e177f0c0a89760e4ee0"
+  ]
+}

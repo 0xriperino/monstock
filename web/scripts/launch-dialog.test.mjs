@@ -8,7 +8,8 @@ import { decodeFunctionData, encodeFunctionResult, parseAbi, parseUnits } from '
 const url = process.env.E2E_URL ?? 'http://127.0.0.1:3101';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(url).hostname), 'Only a local app may be tested.');
 const deployment = JSON.parse(await readFile(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
-const abi = parseAbi([
+const launcher = JSON.parse(await readFile(new URL("../../contracts/out/StockBackLauncher.sol/StockBackLauncher.json",import.meta.url),"utf8"));
+const abi = [...launcher.abi, ...parseAbi([
   'function stockToken() view returns (address)',
   'function getMarkets() view returns (address[])',
   'function balanceOf(address) view returns (uint256)',
@@ -16,11 +17,12 @@ const abi = parseAbi([
   'function hasClaimed(address) view returns (bool)',
   'function faucet()',
   'function createCoin(string,string,uint256) returns (address,address,address)',
-]);
+])];
 const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
 let passed = 0;
 
 async function scenario(name, options, check) {
+  if (process.env.LAUNCH_SCENARIO && !name.includes(process.env.LAUNCH_SCENARIO)) return;
   const context = await browser.newContext({ viewport: { width: options.width ?? 1440, height: 1000 } });
   const page = await context.newPage();
   const errors = [];
@@ -37,6 +39,8 @@ async function scenario(name, options, check) {
         if (functionName === 'balanceOf' && options.balanceError) return { ...response, error: { code: -32000, message: 'Balance RPC unavailable' } };
         const result = {
           stockToken: deployment.contracts.stockToken,
+          factoryFor: deployment.contracts.factory,
+          launch: Array(3).fill("0x0000000000000000000000000000000000000022"),
           getMarkets: [],
           balanceOf: parseUnits(options.balance ?? '10000', 18),
           allowance: 2n ** 256n - 1n,
@@ -83,9 +87,8 @@ async function scenario(name, options, check) {
     Object.defineProperty(window, 'ethereum', { value: provider });
   }, options);
   try {
-    await page.goto(url);
-    await page.getByRole('button', { name: 'Launch a coin', exact: true }).first().click();
-    const dialog = page.getByRole('dialog');
+    await page.goto(new URL("/launch",url).href);
+    const dialog = page.locator(".sb-launch-page");
     await dialog.waitFor();
     await check(page, dialog);
     assert.deepEqual(errors, []);
@@ -99,7 +102,7 @@ async function scenario(name, options, check) {
 
 async function fill(dialog, amount = '5000') {
   await dialog.getByLabel('Token name', { exact: true }).fill('YSToken');
-  await dialog.getByLabel('Ticker', { exact: true }).fill('YS');
+  await dialog.getByLabel('Symbol', { exact: true }).fill('YS');
   await dialog.getByLabel('Initial stock liquidity', { exact: true }).fill(amount);
 }
 async function connect(dialog) {
@@ -109,14 +112,14 @@ async function connect(dialog) {
   await button.click();
 }
 try {
-  await scenario('Connect and switch network inside the launch dialog without losing input', {}, async (page, dialog) => {
+  await scenario('Connect and switch network on the launch page without losing input', {}, async (page, dialog) => {
     await fill(dialog);
     await connect(dialog);
     const change = dialog.getByRole('button', { name: 'Switch to Monad Testnet', exact: true });
     await change.waitFor();
     await change.click();
-    const create = dialog.getByRole('button', { name: 'Create coin', exact: true });
-    await page.waitForFunction(() => { const button = document.querySelector('dialog button[type="submit"]'); return button && !button.disabled; });
+    const create = dialog.getByRole('button', { name: 'Launch token', exact: true });
+    await page.waitForFunction(() => { const button = document.querySelector('.sb-launch-page button[type="submit"]'); return button && !button.disabled; });
     assert.equal(await create.isEnabled(), true);
     assert.equal(await dialog.getByLabel('Token name', { exact: true }).inputValue(), 'YSToken');
     assert.equal(await dialog.getByLabel('Initial stock liquidity', { exact: true }).inputValue(), '5000');
@@ -128,14 +131,14 @@ try {
   });
   await scenario('Wallet can connect before required form fields are filled', { correctNetwork: true }, async (page, dialog) => {
     await connect(dialog);
-    await dialog.getByRole('button', { name: 'Create coin', exact: true }).waitFor();
-    assert.equal(await dialog.getByRole('button', { name: 'Create coin', exact: true }).isDisabled(), true);
+    await dialog.getByRole('button', { name: 'Launch token', exact: true }).waitFor();
+    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
     await fill(dialog, '0');
-    assert.equal(await dialog.getByRole('button', { name: 'Create coin', exact: true }).isDisabled(), true);
+    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
     await dialog.getByLabel('Initial stock liquidity', { exact: true }).fill('1');
-    await page.waitForFunction(() => { const button = document.querySelector('dialog button[type="submit"]'); return button && !button.disabled; });
+    await page.waitForFunction(() => { const button = document.querySelector('.sb-launch-page button[type="submit"]'); return button && !button.disabled; });
   });
-  await scenario('Missing wallet error is visible inside the modal', { noWallet: true }, async (_page, dialog) => {
+  await scenario('Missing wallet error is visible on the launch page', { noWallet: true }, async (_page, dialog) => {
     await connect(dialog);
     await dialog.getByRole('alert').filter({ hasText: /Install or enable/ }).waitFor();
   });
@@ -143,25 +146,25 @@ try {
     await connect(dialog);
     await dialog.getByRole('alert').waitFor();
     await connect(dialog);
-    await dialog.getByRole('button', { name: 'Create coin', exact: true }).waitFor();
+    await dialog.getByRole('button', { name: 'Launch token', exact: true }).waitFor();
     assert.equal(await dialog.getByRole('alert').count(), 0);
   });
-  await scenario('Insufficient balance exposes the faucet and signing rejection in the modal', { correctNetwork: true, balance: '0', width: 390 }, async (page, dialog) => {
+  await scenario('Insufficient balance exposes the faucet and signing rejection on the launch page', { correctNetwork: true, balance: '0', width: 390 }, async (page, dialog) => {
     await fill(dialog);
     await connect(dialog);
     const faucet = dialog.getByRole('button', { name: 'Get test MockSPYx', exact: true });
     await faucet.waitFor();
-    assert.equal(await dialog.getByRole('button', { name: 'Create coin', exact: true }).isDisabled(), true);
+    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
     await faucet.click();
     await dialog.getByRole('alert').waitFor();
     const size = await page.evaluate(() => ({ width: innerWidth, content: document.documentElement.scrollWidth }));
-    assert.ok(size.content <= size.width + 1, 'Mobile dialog must not overflow horizontally.');
+    assert.ok(size.content <= size.width + 1, 'Mobile launch page must not overflow horizontally.');
   });
   await scenario('Unavailable balances display a reason and block creation', { correctNetwork: true, balanceError: true }, async (_page, dialog) => {
     await fill(dialog);
     await connect(dialog);
     await dialog.getByRole('alert').filter({ hasText: /balance|RPC/i }).waitFor({ timeout: 30_000 });
-    assert.equal(await dialog.getByRole('button', { name: 'Create coin', exact: true }).isDisabled(), true);
+    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
   });
-  console.log(`${passed} launch-dialog regression scenarios passed. No real transactions submitted.`);
+  console.log(`${passed} launch-page regression scenarios passed. No real transactions submitted.`);
 } finally { await browser.close(); }

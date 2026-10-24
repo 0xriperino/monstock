@@ -2,9 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { ArrowDownWideNarrow, ArrowRight, Check, Coins, Gift, Layers3, LockKeyhole, Plus, Search, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowRight, Coins, Gift, Layers3, LockKeyhole, Search, ShieldCheck, Sparkles, X } from "lucide-react";
 import type { ViewContext } from "./StockBackApp";
-import { Amount, Button, EmptyState, LoadingState, TokenMark, atomic, canSpend, positive } from "./ui";
+import { Amount, Button, EmptyState, LoadingState, TokenMark, atomic, positive } from "./ui";
 
 type Filter = "all" | "holdings" | "rewards";
 type Sort = "liquidity" | "name";
@@ -13,7 +13,7 @@ const HERO_CHART_PATH = "M90 278C180 285 176 214 252 230S334 293 400 223S458 131
 
 /** Discovery uses only supplied pool data. The hero artwork is decorative, not a price history. */
 export function DiscoverView(context: ViewContext) {
-  const { data, actions, busy, run, navigate, setLaunchOpen } = context;
+  const { data, actions, busy, run, navigate } = context;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("liquidity");
@@ -70,7 +70,7 @@ export function DiscoverView(context: ViewContext) {
         <span className="sb-eyebrow"><span className="sb-dot sb-dot--purple" />MEMES MEET MARKETS</span>
         <h1 id="sb-discover-title">Big meme energy.<br /><span>Stock-backed markets.</span></h1>
         <p>Launch a meme. Trade against {data.stockToken.symbol}.<br className="sb-desktop-break" /> Share the fees with every move.</p>
-        <Button onClick={() => setLaunchOpen(true)} disabled={busy}>Launch a coin<ArrowRight size={16} aria-hidden="true" /></Button>
+        <Button onClick={() => navigate("launch")} disabled={busy}>Launch a coin<ArrowRight size={16} aria-hidden="true" /></Button>
         <div className="sb-hero-footnote"><LockKeyhole size={12} aria-hidden="true" />Fixed supply. Locked liquidity. Built on Monad.</div>
       </div>
       <div className="sb-hero-pair" aria-label="StockBack market model">
@@ -85,67 +85,15 @@ export function DiscoverView(context: ViewContext) {
       </div>
       <div className="sb-discovery-filters"><div role="group" aria-label="Filter markets"><span className="sb-filter-label">Explore</span>{([{ id: "all", label: "All markets", icon: Layers3 }, { id: "holdings", label: "My holdings", icon: Coins }, { id: "rewards", label: "Rewards ready", icon: Gift }] as const).map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}><Icon size={14} aria-hidden="true" />{label}</button>)}</div><span className="sb-pair-filter"><span className="sb-dot sb-dot--purple" />Paired with <strong>{data.stockToken.symbol}</strong></span></div>
       <div className="sb-market-section-heading"><h2 id="sb-markets-title">{filter === "holdings" ? "Your holdings" : filter === "rewards" ? "Claimable rewards" : "Explore the markets"}<span>{data.marketsStatus === "ready" ? markets.length : "—"}</span></h2><span><ShieldCheck size={13} aria-hidden="true" />Testnet assets only</span></div>
-      {data.marketsStatus === "loading" ? <LoadingState label="Loading markets" /> : data.marketsStatus === "error" ? <EmptyState title="Markets unavailable" error>{data.marketsError ?? "Market data could not be loaded."}</EmptyState> : markets.length === 0 ? <div className="sb-discovery-empty"><EmptyState title={query ? "No matching markets" : filter !== "all" ? "Nothing here yet" : "Be the first to launch"}>{query ? "Try another name, ticker, or market address." : filter !== "all" ? "Connect your wallet on Monad Testnet to explore your balances and rewards." : `Create a coin and start the first ${data.stockToken.symbol} market.`}</EmptyState><Button variant="secondary" onClick={() => { setQuery(""); setFilter("all"); if (data.markets.length === 0) setLaunchOpen(true); }}>{data.markets.length === 0 ? "Launch a coin" : "Show all markets"}<ArrowRight size={14} aria-hidden="true" /></Button></div> : <div className="sb-market-grid">{markets.map((market, index) => <button type="button" className="sb-market-card" key={market.id} disabled={busy} aria-label={`Trade ${market.token.symbol}`} onClick={() => { run(() => actions.selectMarket(market.id)); navigate("trading"); }}>
-        <div className="sb-card-top"><span className={`sb-card-avatar sb-card-avatar--${index % 4}`}><TokenMark symbol={market.token.symbol} /></span><span className="sb-rewards-tag"><Gift size={12} aria-hidden="true" />Holder rewards</span><ArrowRight size={16} className="sb-card-arrow" aria-hidden="true" /></div>
+      {data.marketsStatus === "loading" ? <LoadingState label="Loading markets" /> : data.marketsStatus === "error" ? <EmptyState title="Markets unavailable" error>{data.marketsError ?? "Market data could not be loaded."}</EmptyState> : markets.length === 0 ? <div className="sb-discovery-empty"><EmptyState title={query ? "No matching markets" : filter !== "all" ? "Nothing here yet" : "Be the first to launch"}>{query ? "Try another name, ticker, or market address." : filter !== "all" ? "Connect your wallet on Monad Testnet to explore your balances and rewards." : `Create a coin and start the first ${data.stockToken.symbol} market.`}</EmptyState><Button variant="secondary" onClick={() => { setQuery(""); setFilter("all"); if (data.markets.length === 0) navigate("launch"); }}>{data.markets.length === 0 ? "Launch a coin" : "Show all markets"}<ArrowRight size={14} aria-hidden="true" /></Button></div> : <div className="sb-market-grid">{markets.map((market, index) => <button type="button" className="sb-market-card" key={market.id} disabled={busy} aria-label={`Trade ${market.token.symbol}`} onClick={() => { run(() => actions.selectMarket(market.id)); navigate("trading"); }}>
+        <div className="sb-card-top"><span className={`sb-card-avatar sb-card-avatar--${index % 4}`}>{market.token.image ? <img className="sb-token-art" src={market.token.image} alt="" width={44} height={44} /> : <TokenMark symbol={market.token.symbol} />}</span><span className="sb-rewards-tag"><Gift size={12} aria-hidden="true" />Holder rewards</span><ArrowRight size={16} className="sb-card-arrow" aria-hidden="true" /></div>
         <div className="sb-card-identity"><strong>${market.token.symbol}</strong><span>{market.token.name}</span></div>
         <div className="sb-card-pair">Paired with <span className="sb-stock-mini">S</span><strong>{data.stockToken.symbol}</strong><span className="sb-card-chain">MONAD</span></div>
         <div className="sb-card-stats"><div><span>Stock liquidity</span><strong><Amount value={market.stockReserve} digits={2} /><small>{data.stockToken.symbol}</small></strong></div><div><span>Token price</span><strong><Amount value={market.estimatedPrice} digits={6} /></strong></div></div>
-        <div className="sb-card-bottom"><span><span className="sb-dot sb-dot--purple" />1% trading fee</span><span>Trade pair<ArrowRight size={12} aria-hidden="true" /></span></div>
+        <div className="sb-card-bottom"><span><span className="sb-dot sb-dot--purple" />{(market.tradingFeeBps ?? 100) / 100}% trading fee</span><span>Trade pair<ArrowRight size={12} aria-hidden="true" /></span></div>
       </button>)}</div>}
     </section>
 
-    <section className="sb-discover-rewards" aria-label="Trading fee distribution"><div className="sb-rewards-intro"><span className="sb-eyebrow"><Sparkles size={13} aria-hidden="true" />EVERY TRADE GIVES BACK</span><h2>A little fee.<br />A shared reward.</h2><p>Every trade pays a 1% fee in {data.stockToken.symbol}.<br />Here is where it goes.</p></div><div className="sb-share"><span>01 / HOLDERS</span><strong>40<small>%</small></strong><p>For the people holding the meme.</p><div style={{ "--share": "40%" } as CSSProperties} /></div><div className="sb-share"><span>02 / STOCKVAULT</span><strong>10<small>%</small></strong><p>For the people locking {data.stockToken.symbol}.</p><div style={{ "--share": "10%" } as CSSProperties} /></div><div className="sb-share"><span>03 / TREASURY</span><strong>50<small>%</small></strong><p>For the protocol behind the markets.</p><div style={{ "--share": "50%" } as CSSProperties} /></div></section>
-    <CoinLaunchDialog {...context} />
+    <section className="sb-discover-rewards" aria-label="Trading fee distribution"><div className="sb-rewards-intro"><span className="sb-eyebrow"><Sparkles size={13} aria-hidden="true" />EVERY TRADE GIVES BACK</span><h2>A little fee.<br />A shared reward.</h2><p>Every trade pays its market’s 1% or 3% fee in {data.stockToken.symbol}.<br />Here is where it goes.</p></div><div className="sb-share"><span>01 / HOLDERS</span><strong>40<small>%</small></strong><p>For the people holding the meme.</p><div style={{ "--share": "40%" } as CSSProperties} /></div><div className="sb-share"><span>02 / STOCKVAULT</span><strong>10<small>%</small></strong><p>For the people locking {data.stockToken.symbol}.</p><div style={{ "--share": "10%" } as CSSProperties} /></div><div className="sb-share"><span>03 / TREASURY</span><strong>50<small>%</small></strong><p>For the protocol behind the markets.</p><div style={{ "--share": "50%" } as CSSProperties} /></div></section>
   </div>;
-}
-
-function CoinLaunchDialog({ data, actions, ready, busy, run, launchOpen, setLaunchOpen }: ViewContext) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const id = useId();
-  const [name, setName] = useState("");
-  const [symbol, setSymbol] = useState("");
-  const [liquidity, setLiquidity] = useState("");
-  const [launchError, setLaunchError] = useState<string | null>(null);
-  useEffect(() => {
-    if (launchOpen && !dialog.current?.open) dialog.current?.showModal();
-    if (!launchOpen && dialog.current?.open) dialog.current.close();
-  }, [launchOpen]);
-  const walletConnected = data.wallet.status === "connected" && Boolean(data.wallet.address);
-  const balanceReady = ready && data.wallet.balancesStatus === "ready" && data.wallet.stockBalance !== null;
-  const sufficient = balanceReady && canSpend(liquidity, data.wallet.stockBalance, data.stockToken.decimals);
-  const valid = name.trim().length > 0 && /^[A-Z0-9]{1,12}$/.test(symbol) && sufficient;
-  const actionError = launchError ?? (data.transaction.status === "error" ? data.transaction.message : null);
-  function runLaunchAction(action: () => ReturnType<typeof actions.connectWallet>) {
-    run(async () => {
-      setLaunchError(null);
-      try { await action(); }
-      catch (error) {
-        setLaunchError(error instanceof Error ? error.message : "The action could not complete. Please try again.");
-        throw error;
-      }
-    });
-  }
-  return <dialog ref={dialog} className="sb-launch-dialog" aria-labelledby={`${id}-title`} onClose={() => setLaunchOpen(false)} onCancel={(event) => { if (busy) event.preventDefault(); else setLaunchOpen(false); }}>
-    <div className="sb-dialog-heading"><span className="sb-pair-symbol"><Plus size={22} aria-hidden="true" /></span><button type="button" aria-label="Close launch form" disabled={busy} onClick={() => setLaunchOpen(false)}><X size={19} /></button></div>
-    <span className="sb-eyebrow">YOUR NEXT BIG IDEA</span><h2 id={`${id}-title`}>Launch your coin.</h2><p className="sb-dialog-description">One million tokens. Your own {data.stockToken.symbol} market.</p>
-    <form className="sb-form" onSubmit={(event) => { event.preventDefault(); if (valid && ready && !busy) runLaunchAction(() => actions.createCoin({ name: name.trim(), symbol, stockTokenId: data.stockToken.id, initialStockLiquidity: liquidity })); }}>
-      {data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-field"><label htmlFor={`${id}-quote`}>Pair with</label><select id={`${id}-quote`} aria-label="Launch pair asset" value={data.stockToken.id} disabled={busy} onChange={event => { const nextId = event.currentTarget.value; setLaunchError(null); run(() => actions.selectQuoteAsset?.(nextId)); }}>{data.quoteAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select><small>Demo tokens only. The selected asset funds liquidity and pays fees and rewards.</small></div>}
-      <div className="sb-field"><label htmlFor={`${id}-name`}>Token name</label><input id={`${id}-name`} placeholder="e.g. Market Cat" value={name} onChange={(event) => setName(event.target.value)} maxLength={48} required disabled={busy} /></div>
-      <div className="sb-field"><label htmlFor={`${id}-symbol`}>Ticker</label><div className="sb-input-with-prefix"><span>$</span><input id={`${id}-symbol`} placeholder="MCAT" value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} pattern="[A-Z0-9]{1,12}" maxLength={12} required disabled={busy} /></div><small>1–12 letters or numbers.</small></div>
-      <div className="sb-field"><label htmlFor={`${id}-liquidity`}>Initial stock liquidity</label><div className="sb-input-with-unit"><input id={`${id}-liquidity`} inputMode="decimal" value={liquidity} onChange={(event) => setLiquidity(event.target.value)} placeholder="0.00" required disabled={busy} aria-describedby={`${id}-help`} /><span>{data.stockToken.symbol}</span></div><small id={`${id}-help`}>{liquidity && !positive(liquidity, data.stockToken.decimals) ? "Enter a positive amount with up to 18 decimals." : balanceReady && positive(liquidity, data.stockToken.decimals) && !sufficient ? `Insufficient ${data.stockToken.symbol} balance.` : <>Available: <Amount value={balanceReady ? data.wallet.stockBalance : null} /> {data.stockToken.symbol}</>}</small></div>
-      <div className="sb-launch-summary"><span><Check size={14} aria-hidden="true" />1,000,000 fixed supply</span><span><LockKeyhole size={14} aria-hidden="true" />Liquidity is permanently locked</span><span><Gift size={14} aria-hidden="true" />40% of trading fees to holders</span></div>
-      {!walletConnected ? <p className="sb-input-help">Connect your wallet below to launch. Your form entries will be kept.</p>
-        : !ready ? <p className="sb-input-help">Your wallet is connected. Switch to Monad Testnet below to continue.</p>
-        : data.wallet.balancesStatus === "loading" ? <p role="status" className="sb-input-help">Loading wallet balances…</p>
-        : !balanceReady ? <p role="alert" className="sb-negative">Wallet balances unavailable. {data.wallet.balancesError ?? "Close this form and refresh chain data, then retry."}</p> : null}
-      {balanceReady && !sufficient && data.wallet.faucetAvailable && <div className="sb-input-help"><p>Need {data.stockToken.symbol}? Claim test tokens here. Keep some test MON in your wallet for network fees.</p><Button type="button" variant="secondary" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.requestFaucet)}>Get test {data.stockToken.symbol}</Button></div>}
-      {actionError && <p role="alert" className="sb-negative">{actionError}</p>}
-      {data.transaction.status === "pending" && <p role="status" className="sb-input-help">{data.transaction.label ?? "Waiting for wallet confirmation…"}</p>}
-      {data.transaction.status === "success" && <p role="status">Transaction confirmed. Your market data will update after confirmation.</p>}
-      {!walletConnected ? <Button type="button" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.connectWallet)}>{data.wallet.status === "connecting" ? "Connecting…" : "Connect wallet"}<ArrowRight size={15} aria-hidden="true" /></Button>
-        : !ready ? <Button type="button" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.switchNetwork)}>Switch to Monad Testnet<ArrowRight size={15} aria-hidden="true" /></Button>
-        : <Button type="submit" className="sb-full" disabled={!valid || busy}>Create coin<ArrowRight size={15} aria-hidden="true" /></Button>}
-      <small className="sb-centered sb-muted">{busy ? "Complete the current wallet action first." : "Approval and creation require wallet confirmation."}</small>
-    </form>
-  </dialog>;
 }

@@ -1,6 +1,7 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { createPublicClient, defineChain, getAddress, isAddress } from "viem";
+import launcherDeployment from "../../../shared/launcher.json";
 import registry from "../../../shared/assets.json";
 import type { QuoteAssetConfig } from "./stockback";
 import deployments from "../../../shared/deployments.json";
@@ -37,3 +38,5 @@ export const quoteAssets: QuoteAssetConfig[] = registryAssets.map(asset => {
 if (stockAddress && factoryAddress && !quoteAssets.some(a => a.id.toLowerCase() === stockAddress.toLowerCase())) {
   quoteAssets.unshift({ id: stockAddress, factory: factoryAddress, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 });
 }
+
+export const launcherAddress = configuredAddress(process.env.NEXT_PUBLIC_LAUNCHER_ADDRESS || (!localMode ? launcherDeployment.address : null));

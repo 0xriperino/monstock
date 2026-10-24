@@ -1,6 +1,8 @@
 import { BaseError, formatUnits, getAddress, isAddress, parseUnits, type Abi, type Address, type Chain, type PublicClient, type TransactionReceipt, type WalletClient } from "viem";
-import { factoryAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
-import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition, TokenInfo } from "../types/ui";
+import { factoryAbi, launcherAbi, rewardMarketAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
+import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition, TokenInfo, CreateCoinParams } from "../types/ui";
+
+import { decodeMetadata, encodeMetadata, launchOutput, MEME_SUPPLY, optionalUnits } from "./launch";
 
 export function errorMessage(error: unknown): string {
   return error instanceof BaseError ? error.shortMessage : error instanceof Error ? error.message : "The action could not complete.";
@@ -26,7 +28,7 @@ export function emptyData(networkName: string, message?: string): StockBackUIDat
 }
 
 export type QuoteAssetConfig = TokenInfo & { id: Address; factory: Address };
-type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo };
+type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo; tradingFeeBps: number };
 type Pending = (label: string, hash?: `0x${string}`) => void;
 
 /** Browser-only integration; contracts and confirmed receipts are the source of truth. */
@@ -40,6 +42,7 @@ export class StockBackClient {
     readonly wallet: () => Promise<WalletClient>,
     readonly onPending: Pending = () => {},
     readonly assets: readonly QuoteAssetConfig[] = [{ id: stock, factory, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 }],
+    readonly launcher?: Address,
   ) {}
 
   async assertDeployment() {
@@ -53,15 +56,21 @@ export class StockBackClient {
 
   async pools(stock?: Address): Promise<Pool[]> {
     const groups = await Promise.all(this.assets.filter(asset => !stock || asset.id.toLowerCase() === stock.toLowerCase()).map(async asset => {
-      const markets = await this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" });
+      const [legacy, launched] = await Promise.all([
+        this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
+        this.launcher ? this.client.readContract({ address: this.launcher, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] }) : Promise.resolve([] as Address[]),
+      ]);
+      const markets = [...legacy, ...launched];
       return Promise.all(markets.map(async market => {
-        const [meme, vault, stock] = await Promise.all([
+        const [meme, vault, stock, feeBps] = await Promise.all([
           this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
           this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
           this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
+          launched.some(p => p.toLowerCase() === market.toLowerCase()) ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
         ]);
         if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
-        return { market, meme, vault, stock, stockToken: asset };
+        if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
+        return { market, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
       }));
     }));
     return groups.flat();
@@ -89,11 +98,12 @@ export class StockBackClient {
     let totalVaultReward = 0n;
     const positions: VaultPosition[] = [];
     const markets = await Promise.all(pools.map(async pool => {
-      const [name, symbol, reserves, epoch] = await Promise.all([
+      const [name, symbol, reserves, epoch, metadataJSON] = await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "name" }),
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "symbol" }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "getReserves" }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "nextEpochAt" }),
+        this.launcher ? this.client.readContract({ address: this.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
       ]);
       const [balance, rewards, stockAllowance, memeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
@@ -114,7 +124,7 @@ export class StockBackClient {
       }
       totalHolder += rewards ?? 0n;
       return {
-        id: pool.market, stockToken: pool.stockToken, token: { id: pool.meme, name, symbol, decimals: 18 }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
+        id: pool.market, stockToken: pool.stockToken, tradingFeeBps: pool.tradingFeeBps, token: { id: pool.meme, name, symbol, decimals: 18, ...decodeMetadata(metadataJSON) }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
         estimatedPrice: reserves[1] > 0n ? human(reserves[0] * 10n ** 18n / reserves[1]) : null,
         walletBalance: balance === null ? null : human(balance), claimableRewards: rewards === null ? null : human(rewards),
         stockApproval: stockAllowance === null ? unknownApproval : approval(stockAllowance), memeApproval: memeAllowance === null ? unknownApproval : approval(memeAllowance),
@@ -171,6 +181,26 @@ export class StockBackClient {
     if (allowance < amount) await this.approve(this.stock, this.factory, liquidity);
     return this.send("Create coin and market", this.factory, factoryAbi, "createCoin", [name.trim(), symbol.trim(), amount]);
   }
+  async launchCoin(params: CreateCoinParams) {
+    if (!this.launcher) throw new Error("Token launcher is not configured for this network.");
+    if (params.stockTokenId && params.stockTokenId.toLowerCase() !== this.stock.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+    if (!params.name.trim() || new TextEncoder().encode(params.name.trim()).length > 128 || !/^[A-Z0-9]{1,12}$/.test(params.symbol)) throw new Error("Enter a token name and a ticker of 1–12 letters or numbers.");
+    const liquidity = amountUnits(params.initialStockLiquidity);
+    const devBuy = optionalUnits(params.devBuyAmount ?? "0");
+    const feeBps = params.tradingFeeBps ?? 100;
+    const output = launchOutput(liquidity, devBuy, feeBps);
+    if (devBuy > 0n && (output === 0n || output > MEME_SUPPLY * 75n / 100n)) throw new Error("Dev buy must be at most 75% of the supply.");
+    const metadataJSON = encodeMetadata(params.metadata);
+    const registered = await this.client.readContract({ address: this.launcher, abi: launcherAbi, functionName: "factoryFor", args: [this.stock] });
+    if (registered.toLowerCase() !== this.factory.toLowerCase()) throw new Error("Launcher factory does not match the selected quote asset.");
+    const { account } = await this.signer();
+    const total = liquidity + devBuy;
+    await this.checkSpend(this.stock, account.address, this.launcher, total, false);
+    const allowance = await this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "allowance", args: [account.address, this.launcher] });
+    if (allowance < total) await this.approve(this.stock, this.launcher, human(total));
+    return this.send("Launch reward token", this.launcher, launcherAbi, "launch", [{ quoteAsset: this.stock, name: params.name.trim(), symbol: params.symbol, liquidity, feeBps: BigInt(feeBps), devBuy, minMemeOut: output * 995n / 1000n, metadataJSON }]);
+  }
+
   private async checkSpend(token: Address, user: Address, spender: Address, amount: bigint, requireApproval = true) {
     const [balance, allowance] = await Promise.all([
       this.client.readContract({ address: token, abi: stockAbi, functionName: "balanceOf", args: [user] }),
@@ -194,7 +224,7 @@ export class StockBackClient {
     const minimum = output * BigInt(10000 - request.slippageBps) / 10000n;
     if (minimum === 0n) throw new Error("Amount is too small to quote.");
     const gross = request.side === "buy" ? amount : reserves[0] * amount / (reserves[1] + amount);
-    const quote: TradeQuote = { ...request, id: crypto.randomUUID(), status: "ready", outputAmount: human(output), minimumOutput: human(minimum), feeAmount: human(gross / 100n), expiresAt: Date.now() + 45_000 };
+    const quote: TradeQuote = { ...request, id: crypto.randomUUID(), status: "ready", outputAmount: human(output), minimumOutput: human(minimum), feeAmount: human(gross * BigInt(pool.tradingFeeBps) / 10_000n), expiresAt: Date.now() + 45_000 };
     for (const [id, old] of this.quotes) if (old.expiresAt <= Date.now()) this.quotes.delete(id);
     if (this.quotes.size >= 32) this.quotes.delete(this.quotes.keys().next().value!);
     this.quotes.set(quote.id, quote);

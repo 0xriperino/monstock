@@ -29,6 +29,7 @@ contract MemeMarket is ReentrancyGuard {
     uint256 private _stockReserve;
     uint256 private _memeReserve;
 
+    uint256 public tradingFeeBps = 100;
     uint256 public pendingHolderFees;
     uint256 public pendingVaultFees;
     uint256 public pendingTreasuryFees;
@@ -75,20 +76,20 @@ contract MemeMarket is ReentrancyGuard {
     }
 
     function quoteBuy(uint256 stockIn) public view initialized returns (uint256) {
-        uint256 net = stockIn - stockIn / 100;
+        uint256 net = stockIn - Math.mulDiv(stockIn, tradingFeeBps, 10_000);
         return Math.mulDiv(_memeReserve, net, _stockReserve + net);
     }
 
     function quoteSell(uint256 memeIn) public view initialized returns (uint256) {
         uint256 gross = Math.mulDiv(_stockReserve, memeIn, _memeReserve + memeIn);
-        return gross - gross / 100;
+        return gross - Math.mulDiv(gross, tradingFeeBps, 10_000);
     }
 
     function buy(uint256 stockIn, uint256 minMemeOut) external nonReentrant initialized {
         require(stockIn != 0, "Zero input");
         uint256 amountOut = quoteBuy(stockIn);
         require(amountOut != 0 && amountOut >= minMemeOut, "Slippage or zero output");
-        uint256 fee = stockIn / 100;
+        uint256 fee = Math.mulDiv(stockIn, tradingFeeBps, 10_000);
         _stockReserve += stockIn - fee;
         _memeReserve -= amountOut;
         _collectFee(fee);
@@ -100,7 +101,7 @@ contract MemeMarket is ReentrancyGuard {
     function sell(uint256 memeIn, uint256 minStockOut) external nonReentrant initialized {
         require(memeIn != 0, "Zero input");
         uint256 gross = Math.mulDiv(_stockReserve, memeIn, _memeReserve + memeIn);
-        uint256 fee = gross / 100;
+        uint256 fee = Math.mulDiv(gross, tradingFeeBps, 10_000);
         uint256 amountOut = gross - fee;
         require(amountOut != 0 && amountOut >= minStockOut, "Slippage or zero output");
         _memeReserve += memeIn;

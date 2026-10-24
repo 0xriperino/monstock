@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
+import { LaunchView } from "./LaunchView";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
@@ -16,8 +18,6 @@ export interface ViewContext extends StockBackAppProps {
   now: number;
   navigate: (view: StockBackView) => void;
   run: (action: () => MaybePromise) => void;
-  launchOpen: boolean;
-  setLaunchOpen: (open: boolean) => void;
 }
 
 const tabs = [
@@ -28,6 +28,7 @@ const tabs = [
 ] as const;
 
 const descriptions: Record<StockBackView, { title: string; description: string }> = {
+  launch: { title: "Launch a token", description: "Create a reward market on Monad." },
   launchpad: { title: "Launchpad", description: "Launch a meme. Build a market. Share the fees." },
   trading: { title: "Trading terminal", description: "Trade memes against your selected quote asset on Monad Testnet." },
   autovault: { title: "AutoVault", description: "Put your selected quote asset to work in StockVault." },
@@ -35,11 +36,18 @@ const descriptions: Record<StockBackView, { title: string; description: string }
 };
 
 export function StockBackApp({ data, actions }: StockBackAppProps) {
-  const [view, setView] = useState<StockBackView>(data.initialView ?? "launchpad");
+  const router = useRouter();
+  const pathname = usePathname();
+  const [selectedView, setView] = useState<StockBackView>(data.initialView ?? "launchpad");
   const [now, setNow] = useState(0);
   const [invoking, setInvoking] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [launchOpen, setLaunchOpen] = useState(false);
+  const view = pathname === "/launch" ? "launch" : selectedView === "launch" ? "launchpad" : selectedView;
+  function navigate(next: StockBackView) {
+    if (next === "launch") { router.push("/launch"); return; }
+    setView(next);
+    if (pathname === "/launch") router.push("/");
+  }
   const actionLock = useRef(false);
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -69,7 +77,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     }).finally(() => { actionLock.current = false; setInvoking(false); });
   }
 
-  const context: ViewContext = { data, actions, ready, busy, now, run, navigate: setView, launchOpen, setLaunchOpen };
+  const context: ViewContext = { data, actions, ready, busy, now, run, navigate };
   const walletLabel = data.wallet.status === "connecting" ? "Connecting…"
     : data.wallet.status === "connected" ? shortAddress(data.wallet.address) : "Connect wallet";
   const tx = data.transaction;
@@ -78,24 +86,24 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
   return <div className="sb-app">
     <a className="sb-skip" href="#stockback-content">Skip to content</a>
     <header className="sb-topbar">
-      <a className="sb-brand" href="#stockback-content" onClick={() => setView("launchpad")} aria-label="StockBack launchpad">
+      <a className="sb-brand" href="#stockback-content" onClick={event => { event.preventDefault(); navigate("launchpad"); }} aria-label="StockBack launchpad">
         <span className="sb-brand-symbol"><Layers3 size={25} strokeWidth={2.3} aria-hidden="true" /></span>
         <span>Stock<span className="sb-brand-light">Back</span></span>
       </a>
       <nav className="sb-nav" aria-label="Main navigation">{tabs.map(({ id, label, icon: Icon }) =>
-        <button type="button" key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}
+        <button type="button" key={id} disabled={busy} onClick={() => navigate(id)} aria-current={view === id ? "page" : undefined}
           className={`sb-nav-item ${view === id ? "is-active" : ""}`}><Icon size={16} aria-hidden="true" />{label}</button>
       )}</nav>
       <div className="sb-topbar-actions">
         <span className="sb-network"><span className={`sb-dot ${data.wallet.networkStatus === "wrong" ? "sb-dot--warning" : ""}`} />{data.wallet.networkName}</span>
-        <Button className="sb-header-launch" onClick={() => { setView("launchpad"); setLaunchOpen(true); }} disabled={busy}><Plus size={16} aria-hidden="true" />Launch coin</Button>
+        <Button className="sb-header-launch" onClick={() => navigate("launch")} disabled={busy}><Plus size={16} aria-hidden="true" />Launch token</Button>
         <Button variant="secondary" disabled={busy || data.wallet.status === "connected"}
           onClick={() => run(actions.connectWallet)}><Wallet size={15} aria-hidden="true" />{walletLabel}</Button>
       </div>
     </header>
 
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
-      {data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-quote-bar">
+      {view !== "launch" && data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-quote-bar">
         <label htmlFor="quote-asset">Pair asset</label>
         <select id="quote-asset" aria-label="Pair asset" value={data.stockToken.id} disabled={busy} onChange={event => { const nextId = event.currentTarget.value; run(() => actions.selectQuoteAsset?.(nextId)); }}>
           {data.quoteAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.symbol}</option>)}
@@ -103,13 +111,13 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       </div>}
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
 
-      {view !== "launchpad" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
+      {view !== "launchpad" && view !== "launch" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
         <span className="sb-badge"><span className="sb-dot sb-dot--purple" />{data.stockToken.symbol} markets</span>
       </div>}
 
-      {data.wallet.status !== "connected" ? <div className="sb-notice"><Wallet size={18} aria-hidden="true" /><div><strong>Connect to get started</strong><p>Explore the markets. Connect your wallet to trade, launch, or lock tokens.</p></div>
+      {view !== "launch" && (data.wallet.status !== "connected" ? <div className="sb-notice"><Wallet size={18} aria-hidden="true" /><div><strong>Connect to get started</strong><p>Explore the markets. Connect your wallet to trade, launch, or lock tokens.</p></div>
         <Button variant="secondary" disabled={busy} onClick={() => run(actions.connectWallet)}>{data.wallet.status === "connecting" ? "Connecting…" : "Connect wallet"}</Button></div>
-        : data.wallet.networkStatus !== "correct" ? <div className="sb-notice sb-notice--warning" role="alert"><CircleAlert size={18} aria-hidden="true" /><div><strong>{data.wallet.networkStatus === "wrong" ? "Switch to Monad Testnet" : "Waiting for network confirmation"}</strong><p>Confirm the test network before submitting an action.</p></div><Button disabled={busy} onClick={() => run(actions.switchNetwork)}>Switch network</Button></div> : null}
+        : data.wallet.networkStatus !== "correct" ? <div className="sb-notice sb-notice--warning" role="alert"><CircleAlert size={18} aria-hidden="true" /><div><strong>{data.wallet.networkStatus === "wrong" ? "Switch to Monad Testnet" : "Waiting for network confirmation"}</strong><p>Confirm the test network before submitting an action.</p></div><Button disabled={busy} onClick={() => run(actions.switchNetwork)}>Switch network</Button></div> : null)}
 
       {ready && data.wallet.balancesStatus === "loading" && <div className="sb-inline-status" role="status"><LoaderCircle size={15} className="sb-spin" aria-hidden="true" />Loading wallet balances…</div>}
       {ready && data.wallet.balancesStatus === "error" && <div className="sb-notice sb-notice--error" role="alert"><CircleAlert size={18} aria-hidden="true" /><div><strong>Balances unavailable</strong><p>{data.wallet.balancesError ?? "Wallet balances could not be loaded. Spending is disabled until data is available."}</p></div></div>}
@@ -121,6 +129,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       </div>}
       {actionError && <div className="sb-notice sb-notice--error" role="alert"><CircleAlert size={18} aria-hidden="true" /><p>{actionError}</p></div>}
 
+      {view === "launch" && <LaunchView {...context} />}
       {view === "launchpad" && <DiscoverView {...context} />}
       {view === "trading" && <TradingView key={`${data.stockToken.id}:${data.selectedMarketId}`} {...context} />}
       {view === "autovault" && <AutoVaultView key={`${data.stockToken.id}:${data.selectedMarketId}`} {...context} />}

@@ -34,7 +34,9 @@ Our answer is a launchpad where token creation, trading, holder rewards, and loc
 
 ### Launch your own meme
 
-Create a token with a name, a ticker, a quote asset and an initial amount of liquidity in that asset.
+Create a token with a name, a ticker, a quote asset, a 1% or 3% trading fee and initial liquidity. The full launch page includes an optional image, website, X and Telegram links, and a summary of the pair and amounts. Artwork and project links are recorded permanently with the launch.
+
+Creators can optionally buy up to 75% of the supply in the same transaction that creates the market. Choose a percentage or an amount in the quote asset. The launch and first buy either complete together or revert together; there is no separate creator allocation or additional mint.
 
 Each token launches with a fixed supply of **1,000,000 tokens** and receives its own market and StockVault. The initial token supply enters the market, and the initial liquidity stays locked.
 
@@ -62,7 +64,7 @@ This creates another form of participation alongside holding or trading a meme t
 
 ## How every trade gives back
 
-StockBack charges a **1% trading fee**, calculated on the quote-asset side of a trade.
+Creators choose a **1% or 3% trading fee** when launching. This rate is fixed for that market and is calculated on the quote-asset side of a trade.
 
 That fee is divided into three allocations:
 

@@ -1,0 +1,71 @@
+import assert from "node:assert/strict";
+import { readFile, writeFile } from "node:fs/promises";
+import { createPublicClient, createWalletClient, defineChain, encodeDeployData, formatEther, http, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { rateLimitedHttp } from "../src/lib/rpc";
+import { StockBackClient, type QuoteAssetConfig } from "../src/lib/stockback";
+import { launcherAbi, memeAbi, stockAbi, rewardMarketAbi } from "../src/lib/abis";
+import { launchOutput, optionalUnits } from "../src/lib/launch";
+
+const live = process.argv.includes("--testnet");
+const rpc = live ? "https://testnet-rpc.monad.xyz" : "http://127.0.0.1:8546";
+const chain = defineChain({ id: live ? 10143 : 31337, name: live ? "Monad Testnet" : "Local", nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 }, rpcUrls: { default: { http: [rpc] } }, testnet: true });
+const client = createPublicClient({ chain, pollingInterval: live ? 1000 : 50, transport: live ? rateLimitedHttp(rpc) : http(rpc) });
+assert.equal(await client.getChainId(), chain.id);
+const account = live ? privateKeyToAccount(process.env.DEPLOYER_PRIVATE_KEY as Hex) : (await createWalletClient({ transport: http(rpc) }).getAddresses())[6];
+const wallet = createWalletClient({ account, chain, transport: live ? rateLimitedHttp(rpc) : http(rpc) });
+const address = typeof account === "string" ? account : account.address;
+if (live) assert.equal(address.toLowerCase(), "0x7640dfae2c612aba5567477aaa91b181f6de1a7c");
+const root = new URL("../../", import.meta.url);
+const catalog = JSON.parse(await readFile(new URL(live ? "shared/assets.json" : "shared/asset-local.json", root), "utf8")) as { chainId: number; assets: QuoteAssetConfig[] };
+assert.equal(catalog.chainId, chain.id);
+const artifact = JSON.parse(await readFile(new URL("contracts/out/StockBackLauncher.sol/StockBackLauncher.json", root), "utf8"));
+const rewardArtifact = JSON.parse(await readFile(new URL("contracts/out/RewardFactory.sol/RewardFactory.json", root), "utf8"));
+const rewardGas = await client.estimateGas({ account: address, data: encodeDeployData({ abi: rewardArtifact.abi, bytecode: rewardArtifact.bytecode.object, args: [address] }) });
+// Include a conservative launcher allowance before broadcasting the factory.
+const combinedBudget = (rewardGas + 2_500_000n) * (await client.getGasPrice()) * 12n / 10n;
+assert.ok(await client.getBalance({ address }) > combinedBudget, "Additional test MON required before deploying launch contracts.");
+console.log("Combined launch deployment budget MON", formatEther(combinedBudget));
+const rewardHash = await wallet.deployContract({ abi: rewardArtifact.abi, bytecode: rewardArtifact.bytecode.object, args: [address] });
+const rewardReceipt = await client.waitForTransactionReceipt({ hash: rewardHash });
+assert.equal(rewardReceipt.status, "success");
+const rewardFactory = rewardReceipt.contractAddress!;
+const args = [catalog.assets.map(a => a.factory), rewardFactory];
+const gas = await client.estimateGas({ account: address, data: encodeDeployData({ abi: artifact.abi, bytecode: artifact.bytecode.object, args }) });
+const budget = gas * (await client.getGasPrice()) * 12n / 10n;
+assert.ok(await client.getBalance({ address }) > budget, "Additional test MON required.");
+console.log("Launcher deployment budget MON", formatEther(budget));
+const hash = await wallet.deployContract({ abi: artifact.abi, bytecode: artifact.bytecode.object, args });
+const receipt = await client.waitForTransactionReceipt({ hash });
+assert.equal(receipt.status, "success");
+const launcher = receipt.contractAddress!;
+await writeFile(new URL(live ? "shared/launcher.json" : "shared/launcher.local.json", root), JSON.stringify({ chainId: chain.id, address: launcher, hash, rewardFactory, rewardFactoryHash: rewardHash, treasury: address, factories: args[0] }, null, 2) + "\n");
+console.log("Launcher", launcher, "transaction", hash);
+for (const asset of catalog.assets) assert.equal((await client.readContract({ address: launcher, abi: launcherAbi, functionName: "factoryFor", args: [asset.id] })).toLowerCase(), asset.factory.toLowerCase());
+if (!live) {
+  const asset = catalog.assets[1];
+  const service = new StockBackClient(client, chain, asset.id, asset.factory, async () => wallet, undefined, catalog.assets, launcher);
+  await service.faucet();
+  let count = (await service.pools(asset.id)).length;
+  for (const feeBps of [100, 300] as const) {
+    const ticker = feeBps === 100 ? "LPONE" : "LPTHREE";
+    await service.launchCoin({ name: "Launch page demo", symbol: ticker, stockTokenId: asset.id, initialStockLiquidity: "1000", devBuyAmount: "100", tradingFeeBps: feeBps, metadata: { website: "https://example.com", twitter: "https://x.com/example", image: "data:image/webp;base64,AAAA" } });
+    const snapshot = await service.snapshot(address);
+    const market = snapshot.markets.find(m => m.token.symbol === ticker)!;
+    assert.ok(market);
+    assert.equal(snapshot.markets.length, ++count);
+    assert.equal(market.tradingFeeBps, feeBps);
+    assert.equal(await client.readContract({address: market.id as Hex, abi: rewardMarketAbi, functionName: "tradingFeeBps"}), BigInt(feeBps));
+    assert.equal(market.token.website, "https://example.com/");
+    assert.equal(market.token.image, "data:image/webp;base64,AAAA");
+    assert.equal(await client.readContract({ address: launcher, abi: launcherAbi, functionName: "creatorOf", args: [market.token.id as Hex] }), address);
+    const expected = launchOutput(optionalUnits("1000"), optionalUnits("100"), feeBps);
+    assert.equal(await client.readContract({ address: market.token.id as Hex, abi: memeAbi, functionName: "balanceOf", args: [address] }), expected);
+    const quote = await service.quote({marketId: market.id, side: "buy", amount: "100", slippageBps: 50});
+    assert.equal(quote.feeAmount, feeBps === 100 ? "1" : "3");
+  }
+  assert.equal(await client.readContract({ address: asset.id, abi: stockAbi, functionName: "balanceOf", args: [address] }), optionalUnits("7800"));
+  await assert.rejects(() => service.launchCoin({ name: "Invalid", symbol: "BAD", initialStockLiquidity: "1000", devBuyAmount: "4000" }), /75%/);
+  await assert.rejects(() => service.launchCoin({ name: "Invalid", symbol: "BAD", initialStockLiquidity: "1000", metadata: { website: "javascript:alert(1)" } }), /HTTPS/);
+  console.log("PASS: real launch, metadata persistence, atomic developer buy, correct asset spending and validation.");
+}
