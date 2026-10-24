@@ -1,0 +1,40 @@
+{
+  "chainId": 10143,
+  "network": "Monad Testnet",
+  "rpcUrl": "https://testnet-rpc.monad.xyz",
+  "status": "deployed",
+  "contracts": {
+    "stockToken": "0x870c0f545b30267e023af89a7674c0aaf82ea92d",
+    "factory": "0x49c9241f7609add7e27c88ebaf2403a21f4ce50d",
+    "memeToken": "0x8BD426d462bf364f71A680e0b3969433aE1259da",
+    "market": "0xbC30A9098F52508aCdf1a5b0f4e5cDEC11F1996d",
+    "vault": "0x5a428f44387A44E3A44aEc80465941EF888FB3f1"
+  },
+  "transactions": [
+    {
+      "hash": "0x33d549856488095b93d15ac8a70dfeed2a7343f7227fcb6c74d37f840d97084c",
+      "blockNumber": "73785236",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x33d549856488095b93d15ac8a70dfeed2a7343f7227fcb6c74d37f840d97084c"
+    },
+    {
+      "hash": "0x15f88683f07c66e389a99b76ea1b00aece86b1ba550adbd817d40518c06e69d2",
+      "blockNumber": "73785243",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x15f88683f07c66e389a99b76ea1b00aece86b1ba550adbd817d40518c06e69d2"
+    },
+    {
+      "hash": "0x7ed99aba3894b2ff93fe0bdbd0bfafcf46cfa0f35922a1b81a31d6b404fccea9",
+      "blockNumber": "73785250",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x7ed99aba3894b2ff93fe0bdbd0bfafcf46cfa0f35922a1b81a31d6b404fccea9"
+    },
+    {
+      "hash": "0x3130013d10f2a97893603a8e42872217e7c78fff82361d755a781776189ad22f",
+      "blockNumber": "73785256",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x3130013d10f2a97893603a8e42872217e7c78fff82361d755a781776189ad22f"
+    },
+    {
+      "hash": "0x262945538db3491f8bed033782f9cd9f486bcb277cec349828a6e093a1e258e0",
+      "blockNumber": "73785262",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x262945538db3491f8bed033782f9cd9f486bcb277cec349828a6e093a1e258e0"
+    }
+  ]
+}

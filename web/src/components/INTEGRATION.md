@@ -39,7 +39,7 @@ depositToVault({ amount, lockDays })
 withdrawFromVault(positionId)
 ```
 
-The optional `requestTradeQuote({ marketId, side, amount, slippageBps })` callback is required to enable executable trades. Publish its result through `data.tradeQuote`, including a unique quote ID, matching request values, the output, minimum output, 1% fee in the input asset, status, and expiry. Input means MockSPYx on buy and meme tokens on sell. Quote requests fire on input edits and explicit refresh. Debounce and discard obsolete requests in the integration if needed; the UI displays only a matching, unexpired quote.
+The optional `requestTradeQuote({ marketId, side, amount, slippageBps })` callback is required to enable executable trades. Publish its result through `data.tradeQuote`, including a unique quote ID, matching request values, the output, minimum output, 1% fee in MockSPYx on both buys and sells, status, and expiry. Input means MockSPYx on buy and meme tokens on sell. Quote requests fire on input edits and explicit refresh. Debounce and discard obsolete requests in the integration if needed; the UI displays only a matching, unexpired quote.
 
 Clear stale transaction state when beginning a new action. Publish pending, success, and error states from the actual wallet/receipt lifecycle. A resolved callback never generates a success message. Rejected callbacks display an error and allow retry. Approval buttons respect amount-specific allowances; the deposit form also requires acknowledgment of the full lock term. `createCoin` must orchestrate any initial-liquidity approval needed before token creation because no pre-market ID exists yet.
 
@@ -48,12 +48,13 @@ Revalidate all balances, allowances, limits, quote amounts, slippage, expiry, ne
 ## Component boundaries
 
 - `StockBackApp.tsx`: shell, four-view navigation, wallet/network notices, transaction feedback, shared action serialization.
-- `overview-views.tsx`: `LaunchpadView`, `PortfolioView`.
+- `DiscoverView.tsx`: active discovery screen, exact liquidity sorting, search/filters, and native launch dialog.
+- `overview-views.tsx`: `PortfolioView` and the original optional `LaunchpadView`.
 - `TradingView.tsx`: pool data, amount-specific approvals, quote protection, trades, holder rewards and epoch settlement.
 - `AutoVaultView.tsx`: deposit/lock acknowledgment, 30/90/180-day weights, locked/unlocked positions.
 - `ui.tsx`: buttons, panels, stat/description rows, loading/empty states, token marks, exact decimal validation and formatting.
 
-The component package intentionally does not include app routes, providers, hooks, ABIs, wallet clients, package configuration, or a backend.
+The components remain independent of providers, hooks, ABIs, wallet clients, and a backend. A minimal Next.js host now lives in `src/app` with package configuration in `web`; its home page deliberately renders the synthetic preview. Replace that entry with the connected `StockBackApp` when the wallet integration is ready. The public `data`/`actions` props are unchanged.
 
 ## Validation — 24 October 2026
 

@@ -1,0 +1,24 @@
+{
+  "provider": "Vercel",
+  "projectId": "prj_teVIBsrMDxsvAUcAFU6UdW0UImpM",
+  "teamId": "team_ZRhE75NwG7UsKsUQFXkk50Pk",
+  "url": "https://monstock-zeta.vercel.app",
+  "target": "production",
+  "framework": "nextjs",
+  "verifiedDeployment": {
+    "id": "dpl_4kmpybv6WtLWDQoEQNMR6Eu9UGto",
+    "state": "READY",
+    "commitSha": "ede29a0d87a6a24ef65119d38aa86c47c6963290",
+    "deploymentUrl": "https://monstock-jtntc8tkc-bakis-projects-26b3a3b6.vercel.app",
+    "buildDurationSeconds": 71.164
+  },
+  "browserChecks": [
+    "Anonymous public access without Vercel login",
+    "Actual deployed SBDEMO market loaded from Monad Testnet",
+    "Real on-chain quote and 1% stock-side fee displayed",
+    "Disconnected trade submission disabled",
+    "No synthetic balances or local Anvil data",
+    "No browser runtime errors"
+  ],
+  "signingKeyUploaded": false
+}

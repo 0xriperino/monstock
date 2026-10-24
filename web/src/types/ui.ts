@@ -52,7 +52,7 @@ export interface TradeQuote extends TradeRequest {
   status: LoadStatus;
   outputAmount: TokenAmount | null;
   minimumOutput: TokenAmount | null;
-  /** Fee in the input asset. The transaction fee is 1%. */
+  /** Fee in MockSPYx on both buy and sell, as charged by MemeMarket. */
   feeAmount: TokenAmount | null;
   expiresAt: number;
   error?: string;

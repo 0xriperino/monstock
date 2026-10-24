@@ -1,0 +1,12 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+.integration-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; padding: 9px 28px; background: #181222; border-bottom: 1px solid #463456; font: 11px/1.5 "Segoe UI", sans-serif; color: #c6b6df; }
+.integration-bar strong { color: #d9c8ff; font-size: 10px; letter-spacing: .07em; }
+.integration-bar label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.integration-bar select, .integration-bar button { font: inherit; color: #ded1ef; background: #241a31; border: 1px solid #68517d; border-radius: 5px; padding: 5px 8px; max-width: 100%; }
+.integration-bar button { cursor: pointer; margin-left: auto; }
+.integration-bar button:disabled { opacity: .55; cursor: not-allowed; }
+.integration-bar :focus-visible { outline: 2px solid #c7b5ff; outline-offset: 2px; }
+@media(max-width: 600px) { .integration-bar { padding: 10px 16px; font-size: 10px; } .integration-bar label { width: 100%; } }

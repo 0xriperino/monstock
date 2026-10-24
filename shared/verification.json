@@ -1,0 +1,104 @@
+{
+  "chainId": 10143,
+  "provider": "agents.devnads.com",
+  "contracts": {
+    "MockStock": {
+      "address": "0x870c0f545b30267e023af89a7674c0aaf82ea92d",
+      "httpStatus": 200,
+      "success": true,
+      "verified": 1,
+      "total": 2,
+      "results": {
+        "monadvision": {
+          "status": "success",
+          "message": "Verified with perfect match",
+          "url": "https://testnet.monadvision.com/address/0x870c0f545b30267e023af89a7674c0aaf82ea92d"
+        },
+        "monadscan": {
+          "status": "failed",
+          "message": "Contract source code already verified"
+        }
+      }
+    },
+    "StockBackFactory": {
+      "address": "0x49c9241f7609add7e27c88ebaf2403a21f4ce50d",
+      "httpStatus": 200,
+      "success": true,
+      "verified": 2,
+      "total": 2,
+      "results": {
+        "monadvision": {
+          "status": "success",
+          "message": "Verified with perfect match",
+          "url": "https://testnet.monadvision.com/address/0x49c9241f7609add7e27c88ebaf2403a21f4ce50d"
+        },
+        "monadscan": {
+          "status": "success",
+          "message": "Pass - Verified",
+          "guid": "rip4sb8rjnxvrw3zyv4hblk5y3f5b2njkqaif8ugy4td9yzkxd",
+          "url": "https://testnet.monadscan.com/address/0x49c9241f7609add7e27c88ebaf2403a21f4ce50d"
+        }
+      }
+    },
+    "MemeToken": {
+      "address": "0x8BD426d462bf364f71A680e0b3969433aE1259da",
+      "httpStatus": 200,
+      "success": true,
+      "verified": 2,
+      "total": 2,
+      "results": {
+        "monadvision": {
+          "status": "success",
+          "message": "Verified with perfect match",
+          "url": "https://testnet.monadvision.com/address/0x8BD426d462bf364f71A680e0b3969433aE1259da"
+        },
+        "monadscan": {
+          "status": "success",
+          "message": "Pass - Verified",
+          "guid": "jkk8r6yk6pv3eh1mb1mkkq2njys8vzwuyzitqczwaw35lvpbcn",
+          "url": "https://testnet.monadscan.com/address/0x8BD426d462bf364f71A680e0b3969433aE1259da"
+        }
+      }
+    },
+    "MemeMarket": {
+      "address": "0xbC30A9098F52508aCdf1a5b0f4e5cDEC11F1996d",
+      "httpStatus": 200,
+      "success": true,
+      "verified": 2,
+      "total": 2,
+      "results": {
+        "monadvision": {
+          "status": "success",
+          "message": "Verified with perfect match",
+          "url": "https://testnet.monadvision.com/address/0xbC30A9098F52508aCdf1a5b0f4e5cDEC11F1996d"
+        },
+        "monadscan": {
+          "status": "success",
+          "message": "Pass - Verified",
+          "guid": "nyzcttjypjdqq6j1vgqzpy2safnwcpjhxzcxvmfr8snfhlewlk",
+          "url": "https://testnet.monadscan.com/address/0xbC30A9098F52508aCdf1a5b0f4e5cDEC11F1996d"
+        }
+      }
+    },
+    "StockVault": {
+      "address": "0x5a428f44387A44E3A44aEc80465941EF888FB3f1",
+      "httpStatus": 200,
+      "success": true,
+      "verified": 2,
+      "total": 2,
+      "results": {
+        "monadvision": {
+          "status": "success",
+          "message": "Verified with perfect match",
+          "url": "https://testnet.monadvision.com/address/0x5a428f44387A44E3A44aEc80465941EF888FB3f1"
+        },
+        "monadscan": {
+          "status": "success",
+          "message": "Pass - Verified",
+          "guid": "r8m3ypx73d5pmaaxthtn591zrxbmaqbrbrqbvuaprnj2kj5e5l",
+          "url": "https://testnet.monadscan.com/address/0x5a428f44387A44E3A44aEc80465941EF888FB3f1"
+        }
+      }
+    }
+  }
+}
