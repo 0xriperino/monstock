@@ -58,8 +58,11 @@ export function DiscoverView(context: ViewContext) {
           <path d={`${HERO_CHART_PATH}V350H90Z`} fill="url(#sb-chart-fill)" />
           <path d={HERO_CHART_PATH} stroke="#836ef9" strokeWidth="9" strokeOpacity=".1" />
           <path d={HERO_CHART_PATH} stroke="url(#sb-chart-stroke)" strokeWidth="2.5" />
-          <g className="sb-hero-marker" style={{ offsetPath: `path("${HERO_CHART_PATH}")` }}>
+          <g className="sb-hero-marker">
             <circle r="9" fill="#171322" stroke="#a999ff" /><circle r="3" fill="#c1b6ff" />
+            <animateMotion path={HERO_CHART_PATH} dur="10s" repeatCount="indefinite"
+              keyPoints="0.52;0.78;0.35;0.52" keyTimes="0;0.33;0.66;1"
+              calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" />
           </g>
         </svg>
       </div>
@@ -72,7 +75,6 @@ export function DiscoverView(context: ViewContext) {
       </div>
       <div className="sb-hero-pair" aria-label="StockBack market model">
         <div className="sb-hero-pair-top"><span className="sb-pair-symbol"><Layers3 size={21} /></span><div><strong>MEME <span>×</span> {data.stockToken.symbol}</strong><small>One pair. A shared upside.</small></div><ArrowRight size={16} /></div>
-        <div className="sb-hero-pair-bottom"><span><strong>1%</strong> trading fee</span><span><Gift size={13} aria-hidden="true" />40% to holders</span></div>
       </div>
     </section>
 
