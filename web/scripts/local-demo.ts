@@ -109,4 +109,7 @@ const demoPool = (await demo.pools())[0];
 const contracts = { stockToken: demoStock, factory: demoFactory, memeToken: demoPool.meme, market: demoPool.market, vault: demoPool.vault };
 await writeFile(new URL("shared/deployments.local.json", root), JSON.stringify({ chainId: 31337, network: chain.name, status: "deployed_locally", rpcUrl, contracts, accounts: { creator, trader, treasury }, transactions: receipts }, null, 2) + "\n");
 await writeFile(new URL("web/.env.local", root), `NEXT_PUBLIC_USE_ANVIL=true\nNEXT_PUBLIC_RPC_URL=${rpcUrl}\nNEXT_PUBLIC_STOCK_TOKEN_ADDRESS=${demoStock}\nNEXT_PUBLIC_FACTORY_ADDRESS=${demoFactory}\n`);
+// Empty local blocks keep chain-time eligibility current while users wait for an epoch.
+// This mines blocks only; settlement still requires a user's transaction.
+await test.setIntervalMining({ interval: 1 });
 console.log(JSON.stringify({ network: "LOCAL ANVIL ONLY", chainId: 31337, contracts, successfulTestTransactions: testedTransactions, demoTransactions: receipts.length, checks: "ALL PASSED", publicEnvFile: "web/.env.local (ignored)" }, null, 2));

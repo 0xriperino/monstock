@@ -9,11 +9,11 @@ npm run dev
 Open http://127.0.0.1:3000. `npm run build` creates the production build;
 `npm run typecheck` checks all components.
 
-The current home page is an explicitly labeled synthetic preview. Wallet and
-transaction callbacks reject requests rather than invent successful trades.
-Developer 4 can replace the preview entry with `StockBackApp` and supply real
-`data` and `actions`; its public props contract is unchanged. See
-`src/components/INTEGRATION.md` for the interface.
+The home page now renders `StockBackConnected`, which provides real contract
+data and transactions to `StockBackApp`. Its public props contract is unchanged.
+See the root README for Anvil/testnet setup and `src/components/INTEGRATION.md`
+for the component interface. Without deployed contract addresses, the app shows
+an explicit deployment notice and does not load synthetic balances.
 
 Discovery search, liquidity/name sorting, holdings/reward filters, navigation,
 and the launch dialog work locally. Every displayed pool value comes from props.
@@ -44,5 +44,6 @@ with no horizontal overflow or page errors. Ten axe WCAG A/AA scans covered the
 four views and launch dialog at desktop and mobile widths; no violations were
 reported. These automated scans are not an accessibility certification.
 
-All 55 Foundry tests also passed. The preview does not validate end-to-end wallet
-transactions; real deployment addresses and the wallet integration are still needed.
+The integration adds real-chain Anvil and browser E2E scripts; run
+`npm run demo:local` and `npm run test:browser` as described in the root README.
+Public Monad deployment is blocked by missing signing credentials/testnet gas.

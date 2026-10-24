@@ -87,7 +87,7 @@ try {
   assert.equal(await page.locator('.sb-transaction--success').count(), 0);
   await confirmed(page.getByRole('button', { name: 'Approve MockSPYx', exact: true }));
   await refreshQuote();
-  await confirmed(page.getByRole('button', { name: 'Buy BROW', exact: true }));
+  await confirmed(page.getByRole('button', { name: 'Buy BROW', exact: true }).last());
   await page.getByRole('button', { name: 'Sell BROW', exact: true }).first().click();
   await page.getByLabel('You pay', { exact: true }).fill('100');
   await page.getByText('Estimate ready', { exact: true }).waitFor();
