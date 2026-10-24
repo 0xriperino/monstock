@@ -115,6 +115,8 @@ export interface StockBackUIData {
   quoteAssets?: TokenInfo[];
   stockToken: TokenInfo;
   markets: StockBackMarket[];
+  /** Cross-asset discovery; trading and portfolio keep the selected quote scope. */
+  discovery?: { markets: StockBackMarket[]; status: LoadStatus; error?: string };
   marketsStatus: LoadStatus;
   marketsError?: string;
   selectedMarketId: string | null;
@@ -154,6 +156,7 @@ export interface StockBackUIActions {
   requestFaucet: () => MaybePromise;
   createCoin: (params: CreateCoinParams) => MaybePromise;
   selectMarket: (marketId: string) => MaybePromise;
+  selectDiscoveryMarket?: (marketId: string) => MaybePromise;
   approveStock: (params: { marketId: string; amount: TokenAmount }) => MaybePromise;
   approveMeme: (params: { marketId: string; amount: TokenAmount }) => MaybePromise;
   buy: (params: ExecuteTradeParams) => MaybePromise;

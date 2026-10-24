@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useSwitchChain } from "wagmi";
 import { getWalletClient } from "wagmi/actions";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TransactionReceipt, WalletClient } from "viem";
 import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } from "../types/ui";
 import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress } from "../lib/chain";
@@ -39,6 +39,14 @@ export function useStockBack() {
     enabled: Boolean(client), refetchInterval: 15_000,
   });
   const unavailable = "Contracts have not been deployed/configured for this network yet.";
+  const otherAssets = quoteAssets.filter(item => item.id.toLowerCase() !== assetId.toLowerCase());
+  const discoveryQueries = useQueries({ queries: otherAssets.map(item => ({
+    queryKey: ["stockback", chain.id, item.id, account.address, null],
+    queryFn: () => new StockBackClient(publicClient, chain, item.id, item.factory,
+      async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
+      () => {}, quoteAssets, launcherAddress).snapshot(account.address),
+    refetchInterval: 15_000,
+  })) });
   // Never reuse another account's cached financial values, even during reconnect.
   const data: StockBackUIData = snapshot.error ? emptyData(chain.name, errorMessage(snapshot.error))
     : snapshot.data ? { ...snapshot.data, wallet: { ...snapshot.data.wallet }, vault: { ...snapshot.data.vault } }
@@ -51,6 +59,13 @@ export function useStockBack() {
   if (asset) data.stockToken = asset;
   data.tradeQuote = quote;
   data.transaction = transaction;
+  const discoverySnapshots = [snapshot, ...discoveryQueries];
+  const discoveryFailure = discoverySnapshots.find(result => result.error);
+  data.discovery = {
+    markets: discoverySnapshots.flatMap(result => result.data?.markets ?? []),
+    status: discoveryFailure ? "error" : discoverySnapshots.some(result => !result.data) ? "loading" : "ready",
+    error: discoveryFailure ? errorMessage(discoveryFailure.error) : undefined,
+  };
 
   function requireClient() {
     if (!client) throw new Error(unavailable);
@@ -115,6 +130,13 @@ export function useStockBack() {
         : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
     }),
     selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
+    selectDiscoveryMarket: marketId => {
+      if (locked.current) throw new Error("Complete the current wallet action first.");
+      const market = data.discovery?.markets.find(item => item.id.toLowerCase() === marketId.toLowerCase());
+      const quoteAsset = market?.stockToken;
+      if (!market || !quoteAsset || !quoteAssets.some(item => item.id.toLowerCase() === quoteAsset.id.toLowerCase())) throw new Error("Unknown market.");
+      setAssetId(quoteAsset.id); setSelectedId(market.id); setQuote(null); quoteSequence.current++;
+    },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
     approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),

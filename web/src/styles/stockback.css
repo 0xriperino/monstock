@@ -1,19 +1,19 @@
 /* Scoped component styles: safe to import beside the host app's Tailwind entry. */
 .sb-app {
-  --sb-bg: #09090b;
-  --sb-surface: #141419;
-  --sb-raised: #1b1b23;
-  --sb-border: #27272f;
-  --sb-primary: #836ef9;
-  --sb-primary-text: #b6aaff;
-  --sb-positive: #4ade80;
-  --sb-negative: #f87171;
-  --sb-text: #fafafa;
-  --sb-muted: #a1a1af;
+  --sb-bg: #ffffff;
+  --sb-surface: #ffffff;
+  --sb-raised: #f5f6f8;
+  --sb-border: #e7e9ed;
+  --sb-primary: #202630;
+  --sb-primary-text: #2458bc;
+  --sb-positive: #14764b;
+  --sb-negative: #b93249;
+  --sb-text: #171c25;
+  --sb-muted: #626b79;
   min-height: 100dvh;
   background: var(--sb-bg);
   color: var(--sb-text);
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Geist", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -383,7 +383,7 @@
 }
 
 /* Discovery layout: StockBack palette, shared with the trading and vault views. */
-.sb-app { --sb-bg: #09090f; --sb-surface: #13131e; --sb-raised: #1b1a2a; --sb-border: #2b283c; --sb-muted: #a29eb5; }
+.sb-app { --sb-bg: #ffffff; --sb-surface: #ffffff; --sb-raised: #f5f6f8; --sb-border: #e7e9ed; --sb-muted: #626b79; }
 .sb-topbar { min-height: 72px; gap: 30px; padding: 0 max(28px, calc((100vw - 1400px) / 2)); background: #0c0b13; }
 .sb-brand { font-size: 22px; gap: 8px; letter-spacing: -.055em; }
 .sb-brand-light { font-weight: 750; }

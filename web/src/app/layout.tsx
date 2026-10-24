@@ -4,10 +4,10 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StockBack — Memes meet markets",
+  title: "StockBack — Markets & Portfolio",
   description: "Discover StockBack's stock-inspired meme markets on Monad Testnet.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body style={{ margin: 0, background: "#09090f" }}><Providers>{children}</Providers></body></html>;
+  return <html lang="en" style={{ colorScheme: "light" }}><body style={{ margin: 0, background: "#ffffff" }}><Providers>{children}</Providers></body></html>;
 }

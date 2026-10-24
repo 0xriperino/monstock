@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { LaunchView } from "./LaunchView";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, Wallet } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, ChartNoAxesCombined, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
 import { Button, QuoteAssetLogo, shortAddress } from "./ui";
 import { PortfolioView } from "./overview-views";
@@ -11,6 +11,7 @@ import { DiscoverView } from "./DiscoverView";
 import { TradingView } from "./TradingView";
 import { AutoVaultView } from "./AutoVaultView";
 import "../styles/stockback.css";
+import "../styles/finance-theme.css";
 
 export interface ViewContext extends StockBackAppProps {
   ready: boolean;
@@ -21,7 +22,7 @@ export interface ViewContext extends StockBackAppProps {
 }
 
 const tabs = [
-  { id: "launchpad", label: "Discover", icon: Rocket },
+  { id: "launchpad", label: "Discover", icon: ChartNoAxesCombined },
   { id: "trading", label: "Trade", icon: ArrowRightLeft },
   { id: "autovault", label: "AutoVault", icon: Layers3 },
   { id: "portfolio", label: "Portfolio", icon: LayoutGrid },
@@ -83,7 +84,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
   const tx = data.transaction;
   const explorerUrl = tx.explorerUrl && /^https?:\/\//i.test(tx.explorerUrl) ? tx.explorerUrl : undefined;
 
-  return <div className="sb-app">
+  return <div className="sb-app sb-finance" data-theme="light">
     <a className="sb-skip" href="#stockback-content">Skip to content</a>
     <header className="sb-topbar">
       <a className="sb-brand" href="#stockback-content" onClick={event => { event.preventDefault(); navigate("launchpad"); }} aria-label="StockBack launchpad">
