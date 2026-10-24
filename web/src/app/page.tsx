@@ -1,7 +1,5 @@
-import { StockBackPreview } from "../components/preview/StockBackPreview";
+import { StockBackConnected } from "./StockBackConnected";
 
-// Explicit synthetic preview until the wallet integration is supplied.
-// The connected host can render StockBackApp with the same data/actions contract.
 export default function Home() {
-  return <StockBackPreview />;
+  return <StockBackConnected />;
 }

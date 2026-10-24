@@ -3,8 +3,15 @@ contracts/cache/
 cache/
 broadcast/
 .env
+.env*
+!.env.example
+!web/.env.example
+!contracts/.env.example
+shared/deployments.local.json
+shared/local-e2e-report.json
 web/node_modules/
 web/.next/
 web/out/
 web/*.tsbuildinfo
 web/.env*
+!web/.env.example

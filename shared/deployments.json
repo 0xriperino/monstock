@@ -1,0 +1,9 @@
+{
+  "chainId": 10143,
+  "network": "Monad Testnet",
+  "rpcUrl": "https://testnet-rpc.monad.xyz",
+  "status": "not_deployed",
+  "contracts": { "stockToken": null, "factory": null, "memeToken": null, "market": null, "vault": null },
+  "transactions": [],
+  "blocker": "Deployment signing credentials and funded testnet deployer are not configured."
+}
