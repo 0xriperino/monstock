@@ -1,0 +1,69 @@
+{
+  "chainId": 10143,
+  "network": "Monad Testnet",
+  "account": "0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C",
+  "status": "passed",
+  "transactions": [
+    {
+      "label": "Approve buy",
+      "hash": "0x5576d0082a557bc32613f7276ce6fed20c2a6fb1548c455f696bf56df1710378",
+      "blockNumber": "73786734",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x5576d0082a557bc32613f7276ce6fed20c2a6fb1548c455f696bf56df1710378"
+    },
+    {
+      "label": "Buy meme tokens",
+      "hash": "0x0f5a60bc837c06c8e092aca1fa686c73ac27e3ae856d8daa2d3ebe55d606ce01",
+      "blockNumber": "73786755",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x0f5a60bc837c06c8e092aca1fa686c73ac27e3ae856d8daa2d3ebe55d606ce01"
+    },
+    {
+      "label": "Approve sell",
+      "hash": "0x60660f8adecb870cab379ef44b0f6a55862ebcc553a60c3a3ebdbc7947bb7a96",
+      "blockNumber": "73786796",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x60660f8adecb870cab379ef44b0f6a55862ebcc553a60c3a3ebdbc7947bb7a96"
+    },
+    {
+      "label": "Sell partial balance",
+      "hash": "0x86d4561e850d623fe85b61321f896eefda573c1416aef37c5fa209a45e04be71",
+      "blockNumber": "73786819",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x86d4561e850d623fe85b61321f896eefda573c1416aef37c5fa209a45e04be71"
+    },
+    {
+      "label": "Permissionless epoch settlement",
+      "hash": "0x0a83934e934857d65075530f530a539cd4addb97eba5d885ae6e571e3d867995",
+      "blockNumber": "73786834",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x0a83934e934857d65075530f530a539cd4addb97eba5d885ae6e571e3d867995"
+    },
+    {
+      "label": "Claim MockSPYx holder rewards",
+      "hash": "0x286df2c2fa2fa6ede2da618644677b787003d2705e2e50ba8e5b0bfa6812fc65",
+      "blockNumber": "73786851",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x286df2c2fa2fa6ede2da618644677b787003d2705e2e50ba8e5b0bfa6812fc65"
+    },
+    {
+      "label": "Approve two Vault deposits",
+      "hash": "0x1a5098b8788813c13f5a333276092953b672b3095ad4abcbcd3212ec8483ff8a",
+      "blockNumber": "73786865",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x1a5098b8788813c13f5a333276092953b672b3095ad4abcbcd3212ec8483ff8a"
+    },
+    {
+      "label": "Deposit claimed rewards for 30 days",
+      "hash": "0x5d63de86844814947bd9a6dc33e49bf81c8da5b43bee6d04eca14eafc4a489e2",
+      "blockNumber": "73786880",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x5d63de86844814947bd9a6dc33e49bf81c8da5b43bee6d04eca14eafc4a489e2"
+    },
+    {
+      "label": "Deposit wallet stock for 90 days",
+      "hash": "0x069d23de6b8be6728dd6c2ed5dc23110d0d3144a9a672bf0b32fc84737dd0851",
+      "blockNumber": "73786898",
+      "explorerUrl": "https://testnet.monadscan.com/tx/0x069d23de6b8be6728dd6c2ed5dc23110d0d3144a9a672bf0b32fc84737dd0851"
+    }
+  ],
+  "checks": [
+    "Deployed code, Factory/Market/Vault relationships, faucet single-claim limit",
+    "Exact buy/sell quotes, approvals, actual AMM swaps and confirmed receipts",
+    "Real 300-second settlement, readable holder reward, claim and no double claim",
+    "Both deposit sources, two real locked positions, exact unlock times, early withdrawal rejected by client and contract"
+  ],
+  "gasSpentMon": "0.141313962"
+}

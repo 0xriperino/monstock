@@ -9,7 +9,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "demo:local": "tsx scripts/local-demo.ts",
     "abis": "node ../contracts/script/export-abis.mjs",
-    "test:browser": "node scripts/browser-e2e.mjs"
+    "test:browser": "node scripts/browser-e2e.mjs",
+    "demo:testnet": "node --env-file=../.env --import tsx scripts/testnet-demo.ts",
+    "test:rpc": "tsx --test src/lib/rpc.test.ts"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

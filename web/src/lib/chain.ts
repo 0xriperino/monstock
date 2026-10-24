@@ -2,6 +2,7 @@ import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { createPublicClient, defineChain, getAddress, isAddress } from "viem";
 import deployments from "../../../shared/deployments.json";
+import { rateLimitedHttp } from "./rpc";
 
 export const localMode = process.env.NEXT_PUBLIC_USE_ANVIL === "true";
 export const chain = defineChain({
@@ -19,5 +20,5 @@ export function configuredAddress(value: string | null | undefined) {
 export const stockAddress = configuredAddress(process.env.NEXT_PUBLIC_STOCK_TOKEN_ADDRESS || (!localMode ? deployments.contracts.stockToken : null));
 export const factoryAddress = configuredAddress(process.env.NEXT_PUBLIC_FACTORY_ADDRESS || (!localMode ? deployments.contracts.factory : null));
 export const deploymentReady = Boolean(stockAddress && factoryAddress);
-export const publicClient = createPublicClient({ chain, transport: http(chain.rpcUrls.default.http[0], { batch: true }) });
+export const publicClient = createPublicClient({ chain, transport: rateLimitedHttp(chain.rpcUrls.default.http[0]) });
 export const wagmiConfig = createConfig({ chains: [chain], connectors: [injected()], transports: { [chain.id]: http(chain.rpcUrls.default.http[0]) }, ssr: true });

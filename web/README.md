@@ -46,5 +46,6 @@ reported. These automated scans are not an accessibility certification.
 
 The integration adds real-chain Anvil and browser E2E scripts; run
 `npm run demo:local` and `npm run test:browser` as described in the root README.
-The deployment wallet is prepared locally; public Monad deployment is awaiting
-testnet MON funding, and Vercel publication is awaiting the account connection.
+The Monad Testnet contracts are deployed and source-verified. The real testnet
+demo passed nine signed transactions; see `shared/testnet-e2e.json` at the repo
+root. Vercel uses the public deployed addresses and never receives the signing key.

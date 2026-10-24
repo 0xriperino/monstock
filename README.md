@@ -41,17 +41,19 @@ The UI becomes successful only after a successful receipt, then refreshes reads.
 | Chain ID | 10143 |
 | RPC | https://testnet-rpc.monad.xyz |
 | Explorer | https://testnet.monadscan.com |
-| Testnet contract addresses | **Not deployed** — see `shared/deployments.json` |
-| Public frontend URL | Not hosted; hosting credentials are not configured |
+| Testnet contract addresses | **Deployed and verified** — see `shared/deployments.json` and `shared/verification.json` |
+| Public frontend URL | Vercel publication in progress; final URL is recorded in `shared/hosting.json` |
 | Local app | http://127.0.0.1:3100 when started with the command below |
 
 The deployment wallet is `0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C`
 on Monad Testnet (see `shared/deployer.json`). Its signing credential exists only
 in the ignored, access-restricted local `.env`; it is never part of this repository.
-The testnet dry-run passed and estimated about 1.22 MON at the observed gas price;
-3 test MON provides a deployment/demo budget. Deployment is awaiting funding,
-and Vercel publication is awaiting the account connection. No testnet contract
-addresses or transaction hashes are invented. Real, temporary
+The user funded this wallet with 5 test MON. All five deployment transactions
+were confirmed on chain 10143. Source verification was completed through the
+Monad verification API; already-verified responses are retained in its report.
+The real testnet demo then confirmed nine more transactions, including buy/sell,
+settlement, reward claim and both Vault deposits, using about 0.1413 MON in gas.
+See `shared/testnet-e2e.json` for the actual receipt hashes and checks. Real, temporary
 **local Anvil** addresses and receipt hashes are saved separately in ignored
 `shared/deployments.local.json` by the local demo. They are not Monad addresses.
 
@@ -119,6 +121,14 @@ rebuild the frontend after a reset. Without configured deployments, the default
 Monad page shows a clear deployment notice and unavailable values, not demo data.
 
 ## Tests
+
+The **real Monad Testnet** demo also passed and is recorded in
+`shared/testnet-e2e.json`. It waits for real epoch eligibility and never changes
+testnet time. Its two positions remain locked for their real 30/90-day durations.
+To deliberately repeat funded transactions, use `ALLOW_TESTNET_TRANSACTIONS=true`
+with `npm run demo:testnet` from `web`. This requires the local signing `.env` and
+spends test MON; it is not a read-only test. The public RPC limiter has a regression
+test: `npm run test:rpc`.
 
 Validated on 24 October 2026: `forge build`, all **58 Foundry tests**,
 strict TypeScript and the Next.js production build passed. The viem local demo
@@ -191,7 +201,14 @@ set the production Git branch to `main`, and run the normal Next.js production
 build. `web/vercel.json` declares the Next.js build settings. Keep
 `NEXT_PUBLIC_USE_ANVIL=false`; never use localhost RPC or local contract addresses
 in the public deployment. Never upload the root signing `.env`.
-Hosting has not yet been performed; the Vercel connection is pending.
+The connected Vercel project is `monstock` in the user's team. Hosting uses only
+public chain configuration and deployed addresses; no signing key is uploaded.
+
+Verify all five deployed sources on the supported Monad explorers with:
+
+```sh
+node contracts/script/verify-deployment.mjs
+```
 
 ## Interactive demo steps
 
@@ -212,14 +229,19 @@ Hosting has not yet been performed; the Vercel connection is pending.
 
 ## Known limitations
 
-- Public testnet deployment, real injected-wallet signing on Monad, public hosting,
-  and a live testnet end-to-end demo remain unverified until credentials/funds are
-  available. Local Anvil results are not presented as Monad transactions.
+- Testnet deployment and a real signed transaction demo passed. Live browser
+  wallet signing still requires the user's injected extension and confirmations;
+  automated browser signing tests use the local-only EIP-1193 fixture.
+- Successful 30/90-day withdrawal cannot yet be demonstrated on the freshly
+  deployed testnet positions. Early withdrawal was rejected; successful unlock
+  was tested only through local Anvil/Foundry time manipulation.
 - Settlement uses balances at settlement time, allowing last-minute positioning.
   It is not time-weighted. Vault rewards are variable trading-fee income, not APY.
 - Reads refresh every 15 seconds and after confirmed transactions. Manual refresh
   is available. Quotes expire after 45 seconds, are rechecked before signing, and
   enforce an on-chain minimum output; a price change can still revert a trade.
+- Public RPC requests are queued and rate-limit responses retried with backoff.
+  Large market lists or endpoint congestion can make reads/quotes slower.
 - With no eligible holders/stakers, that fee share goes to treasury. Rounding dust
   stays reserved and cannot be spent as AMM liquidity or Vault principal.
 - The generic injected-wallet connector supports wallets exposing EIP-1193;
