@@ -51,8 +51,8 @@ export class StockBackClient {
     if (!stockCode || !factoryCode || getAddress(stock) !== getAddress(this.stock)) throw new Error("Deployment addresses do not match deployed StockBack contracts.");
   }
 
-  async pools(): Promise<Pool[]> {
-    const groups = await Promise.all(this.assets.map(async asset => {
+  async pools(stock?: Address): Promise<Pool[]> {
+    const groups = await Promise.all(this.assets.filter(asset => !stock || asset.id.toLowerCase() === stock.toLowerCase()).map(async asset => {
       const markets = await this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" });
       return Promise.all(markets.map(async market => {
         const [meme, vault, stock] = await Promise.all([
@@ -76,7 +76,7 @@ export class StockBackClient {
 
   async snapshot(user?: Address, selectedId?: string | null): Promise<StockBackUIData> {
     await this.assertDeployment();
-    const pools = (await this.pools()).filter(p => p.stock.toLowerCase() === this.stock.toLowerCase());
+    const pools = await this.pools(this.stock);
     const selected = pools.find(p => p.market.toLowerCase() === selectedId?.toLowerCase()) ?? pools[0];
     const block = await this.client.getBlock();
     const data = emptyData(this.chain.name);

@@ -62,7 +62,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
   return <div className="sb-stack">
     <section className="sb-market-header" aria-label="Selected market">
       <div className="sb-token-cell"><TokenMark symbol={market.token.symbol} /><div><h2>{market.token.symbol}<span className="sb-muted"> / {data.stockToken.symbol}</span></h2><p>{market.token.name}</p></div></div>
-      <div className="sb-field sb-market-selector"><label htmlFor={`${id}-market`} className="sb-sr-only">Selected market</label><select id={`${id}-market`} value={market.id} disabled={busy} onChange={(event) => { setAmount(""); setQuoteError(null); ++quoteSequence.current; run(() => actions.selectMarket(event.target.value)); }}>
+      <div className="sb-field sb-market-selector"><label htmlFor={`${id}-market`} className="sb-sr-only">Selected market</label><select id={`${id}-market`} value={market.id} disabled={busy} onChange={(event) => { const marketId = event.currentTarget.value; setAmount(""); setQuoteError(null); ++quoteSequence.current; run(() => actions.selectMarket(marketId)); }}>
         {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / {data.stockToken.symbol}</option>)}
       </select></div>
     </section>

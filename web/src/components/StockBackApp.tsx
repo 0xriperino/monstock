@@ -97,7 +97,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
       {data.quoteAssets && data.quoteAssets.length > 1 && <div className="sb-quote-bar">
         <label htmlFor="quote-asset">Pair asset</label>
-        <select id="quote-asset" aria-label="Pair asset" value={data.stockToken.id} disabled={busy} onChange={event => run(() => actions.selectQuoteAsset?.(event.target.value))}>
+        <select id="quote-asset" aria-label="Pair asset" value={data.stockToken.id} disabled={busy} onChange={event => { const nextId = event.currentTarget.value; run(() => actions.selectQuoteAsset?.(nextId)); }}>
           {data.quoteAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.symbol}</option>)}
         </select><span>Testnet demo assets · Balances and rewards shown in {data.stockToken.symbol}</span>
       </div>}

@@ -1,0 +1,50 @@
+[
+  {
+    "label": "Deploy PYDX",
+    "hash": "0xfd8ed09932f7e6c460a6bcb485ff826c881ec4e8d8c3957a6e8e52ba15159044",
+    "address": "0xb73a882c92c16e0f9c3d3a94971a5fd89ef66022"
+  },
+  {
+    "label": "Factory PYDX",
+    "hash": "0xab1c342b14ec9f7a2b52294f7654e471ad5ac2fa3b879753b35bd2586e8f7878",
+    "address": "0x5500d920cf8973713651c4b9f101a4120254d5ea"
+  },
+  {
+    "label": "Deploy NVDAX",
+    "hash": "0x5c6fbd3da9f86b38b773d1398af17dcb26d6354d3948adab29e00b705fec7d43",
+    "address": "0x7bfe936a92ac8b27181cb515bc83e98977a73d92"
+  },
+  {
+    "label": "Factory NVDAX",
+    "hash": "0xd5a224aae8c961ab1de5dd6db63574f5ddc6fdaf6ac00c26c30aa3f6b09b70fd",
+    "address": "0xb1eda0ba34b402101a4a7cfedc1c066b1bd166af"
+  },
+  {
+    "label": "Deploy GLDX",
+    "hash": "0x2cf349129f12328360d6cbc786298fbe70618b9d1589c44d6df3bcd397826ba4",
+    "address": "0xb282d835c5fc232526cc24125a00352e465d7986"
+  },
+  {
+    "label": "Factory GLDX",
+    "hash": "0x62e8e5815e63e380bb271aa55609344b2815435b40c8049d1ef7f7cc329908ae",
+    "address": "0xd156ec29e88e6031856855b1d08741198528658c"
+  },
+  {
+    "label": "Deploy ANTHROPIC",
+    "hash": "0x1db0d60046c5f5190f4b9645a0bfbaa4fc8092834fa16bf5ba2c06527185684c",
+    "address": "0x9986dce032ee92b260b723283cc2a9315af20d74"
+  },
+  {
+    "label": "Factory ANTHROPIC",
+    "hash": "0xb409a45f91a3ded31012db6f8d269ca6869312b06bab8a6a72b3816ff820cf12",
+    "address": "0x268553ac8d0c1f0ade056e177f0c0a89760e4ee0"
+  },
+  {
+    "label": "Faucet NVDAX",
+    "hash": "0xbc0e80dda616767b075ff2090e6ea6252c102af3ec0a2fa378306a8717c70511"
+  },
+  {
+    "label": "Demo pair NVDAX",
+    "hash": "0x5aa404ea003e28ad9935b534641d64e7654f84289306f4754e3b5a160c3d0728"
+  }
+]

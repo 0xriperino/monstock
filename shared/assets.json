@@ -7,6 +7,34 @@
       "name": "Mock Stock",
       "symbol": "MockSPYx",
       "decimals": 18
+    },
+    {
+      "name": "Mock PYDX",
+      "symbol": "PYDX",
+      "id": "0xb73a882c92c16e0f9c3d3a94971a5fd89ef66022",
+      "factory": "0x5500d920cf8973713651c4b9f101a4120254d5ea",
+      "decimals": 18
+    },
+    {
+      "name": "Mock NVIDIA",
+      "symbol": "NVDAX",
+      "id": "0x7bfe936a92ac8b27181cb515bc83e98977a73d92",
+      "factory": "0xb1eda0ba34b402101a4a7cfedc1c066b1bd166af",
+      "decimals": 18
+    },
+    {
+      "name": "Mock Gold",
+      "symbol": "GLDX",
+      "id": "0xb282d835c5fc232526cc24125a00352e465d7986",
+      "factory": "0xd156ec29e88e6031856855b1d08741198528658c",
+      "decimals": 18
+    },
+    {
+      "name": "Mock Anthropic",
+      "symbol": "ANTHROPIC",
+      "id": "0x9986dce032ee92b260b723283cc2a9315af20d74",
+      "factory": "0x268553ac8d0c1f0ade056e177f0c0a89760e4ee0",
+      "decimals": 18
     }
   ]
 }

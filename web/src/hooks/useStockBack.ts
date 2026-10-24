@@ -106,7 +106,7 @@ export function useStockBack() {
       if (params.stockTokenId && params.stockTokenId.toLowerCase() !== assetId.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
       return requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
     }),
-    selectMarket: marketId => { if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
+    selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
     approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),

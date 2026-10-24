@@ -12,7 +12,9 @@
     "test:browser": "node scripts/browser-e2e.mjs",
     "test:launch": "node scripts/launch-dialog.test.mjs",
     "demo:testnet": "node --env-file=../.env --import tsx scripts/testnet-demo.ts",
-    "test:rpc": "tsx --test src/lib/rpc.test.ts"
+    "test:rpc": "tsx --test src/lib/rpc.test.ts",
+    "test:assets": "tsx scripts/multi-assets.ts",
+    "test:assets:browser": "node scripts/multi-assets-browser.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

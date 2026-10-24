@@ -9,7 +9,7 @@ import { rateLimitedHttp } from "../src/lib/rpc";
 const live = process.argv.includes("--testnet");
 const rpc = live ? "https://testnet-rpc.monad.xyz" : "http://127.0.0.1:8546";
 const chain = defineChain({ id: live ? 10143 : 31337, name: live ? "Monad Testnet" : "Local", nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 }, rpcUrls: { default: { http: [rpc] } }, testnet: true });
-const client = createPublicClient({ chain, transport: live ? rateLimitedHttp(rpc) : http(rpc) });
+const client = createPublicClient({ chain, pollingInterval: live ? 1000 : 50, transport: live ? rateLimitedHttp(rpc) : http(rpc) });
 assert.equal(await client.getChainId(), chain.id);
 const account = live ? privateKeyToAccount(process.env.DEPLOYER_PRIVATE_KEY as Hex) : (await createWalletClient({ transport: http(rpc) }).getAddresses())[0];
 const wallet = createWalletClient({ account, chain, transport: live ? rateLimitedHttp(rpc) : http(rpc) });
