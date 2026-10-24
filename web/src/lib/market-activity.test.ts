@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseEther, zeroAddress, type Address, type PublicClient } from "viem";
-import { buildActivity, buildCandles, readMarketActivity, type TransferRecord, type SwapRecord } from "./market-activity";
+import { buildActivity, buildCandles, readMarketActivity, type MarketTrade, type TransferRecord, type SwapRecord } from "./market-activity";
 
 const address = (n: number) => `0x${n.toString(16).padStart(40, "0")}` as Address;
 const pool = address(1), token = address(2), alice = address(3), bob = address(4);
@@ -53,4 +53,34 @@ test("history scan splits RPC log limits and replaces overlapping logs after a s
   assert.equal(next.holders.length, 1);
   assert.equal(next.holders[0].address, bob);
   assert.equal(next.holders[0].amount, "100");
+});
+
+test("recent trades preview appears before a concurrent full holder scan finishes", { timeout: 5000 }, async () => {
+  let active = 0, peak = 0, finished = false;
+  const mint = { eventName: "Transfer", address: token, blockNumber: 10n, logIndex: 0, args: { from: zeroAddress, to: pool, value: parseEther("1000") } };
+  const buy = { eventName: "Swap", address: pool, blockNumber: 2100n, logIndex: 1, transactionHash: "0x123", args: { trader: alice, isBuy: true, amountIn: parseEther("10"), amountOut: parseEther("100"), stockFee: parseEther("0.1") } };
+  const rpc = {
+    getBlockNumber: async () => 2200n,
+    getCode: async ({ blockNumber }: { blockNumber: bigint }) => blockNumber >= 10n ? "0x6000" : undefined,
+    getBlock: async ({ blockNumber }: { blockNumber: bigint }) => ({ timestamp: blockNumber + 100000n }),
+    getLogs: async ({ address, fromBlock, toBlock }: { address: string | string[]; fromBlock: bigint; toBlock: bigint }) => {
+      if (Array.isArray(address)) {
+        peak = Math.max(peak, ++active);
+        await new Promise(resolve => setTimeout(resolve, 30));
+        active--;
+      }
+      return [mint, buy].filter(log => log.blockNumber >= fromBlock && log.blockNumber <= toBlock && (Array.isArray(address) || log.address === address));
+    },
+  } as unknown as PublicClient;
+  let showPreview!: (trades: MarketTrade[]) => void;
+  const preview = new Promise<MarketTrade[]>(resolve => { showPreview = resolve; });
+  const pending = readMarketActivity(rpc, 999002, pool, token, 0n, { onPreview: showPreview }).then(activity => { finished = true; return activity; });
+  const trades = await preview;
+  assert.equal(finished, false, "the chart should render while verified holders are still loading");
+  assert.equal(trades.length, 1);
+  assert.equal(trades[0].price, .099);
+  const activity = await pending;
+  assert.ok(peak > 1, "independent log ranges should be fetched concurrently");
+  assert.equal(activity.trades.length, 1);
+  assert.equal(activity.totalSupply, "1000");
 });

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Activity, ArrowDownLeft, ArrowUpRight, ChartCandlestick, Copy, ExternalLink, RefreshCw, Users } from "lucide-react";
 import { CandlestickChart } from "./CandlestickChart";
-import type { MarketActivity } from "../lib/market-activity";
+import type { MarketActivity, MarketTrade } from "../lib/market-activity";
 import { buildCandles } from "../lib/market-activity";
 import type { TokenInfo } from "../types/ui";
 import { Amount, Button, EmptyState, Panel, shortAddress } from "./ui";
@@ -12,14 +12,15 @@ const intervals = [["1m", 60], ["5m", 300], ["15m", 900], ["1h", 3600], ["4h", 1
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumSignificantDigits: 5 }).format(value);
 const timeLabel = (time: number) => new Date(time * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 
-export function MarketChart({ activity, pending, progress = 0, error, refreshing, refresh, symbol, quote }: { activity?: MarketActivity; pending: boolean; progress?: number; error?: string; refreshing: boolean; refresh: () => void; symbol: string; quote: TokenInfo }) {
+export function MarketChart({ activity, previewTrades, pending, progress = 0, error, refreshing, refresh, symbol, quote }: { activity?: MarketActivity; previewTrades?: MarketTrade[]; pending: boolean; progress?: number; error?: string; refreshing: boolean; refresh: () => void; symbol: string; quote: TokenInfo }) {
   const [interval, setInterval] = useState(60);
-  const candles = useMemo(() => buildCandles(activity?.trades ?? [], interval), [activity?.trades, interval]);
+  const trades = activity?.trades ?? previewTrades;
+  const candles = useMemo(() => buildCandles(trades ?? [], interval), [trades, interval]);
   return <Panel title="Live market" className="sb-chart-panel" aside={<span className="sb-live-label"><span className="sb-dot" />{refreshing ? "Syncing" : "On-chain"}<button type="button" aria-label="Refresh market activity" disabled={refreshing} onClick={refresh}><RefreshCw size={13} className={refreshing ? "sb-spin" : ""} /></button></span>}>
     <div className="sb-chart-toolbar"><div role="group" aria-label="Chart timeframe">{intervals.map(([label, seconds]) => <button type="button" key={label} aria-pressed={interval === seconds} onClick={() => { setInterval(seconds); }}>{label}</button>)}</div><span>{quote.symbol} / {symbol}</span></div>
-    {activity ? <>
+    {activity || previewTrades?.length ? <>
       {candles.length ? <CandlestickChart candles={candles} interval={interval} symbol={symbol} quote={quote.symbol} /> : <div className="sb-chart-empty"><ChartCandlestick size={40} /><h3>Waiting for the first trade</h3><p>The first confirmed swap starts this token’s price chart.</p></div>}
-      <div className="sb-chart-caption">Block {activity.blockNumber} · Updated {timeLabel(activity.updatedAt)} UTC{error && <span className="sb-negative"> · Sync paused: {error}</span>}</div>
+      <div className="sb-chart-caption">{activity ? `Block ${activity.blockNumber} · Updated ${timeLabel(activity.updatedAt)} UTC` : `Recent confirmed trades · Verifying full history ${progress}%`}{error && <span className="sb-negative"> · Sync paused: {error}</span>}</div>
     </> : <div className="sb-chart-empty"><ChartCandlestick size={40} /><h3>{error ? "Market history unavailable" : pending ? `Syncing token history · ${progress}%` : "Select a live market"}</h3><p>{error ?? "Loading confirmed trades and holders. The first sync can take a moment; live updates follow every 5 seconds."}</p>{error && <Button variant="secondary" onClick={refresh} disabled={refreshing}>Retry</Button>}</div>}
   </Panel>;
 }

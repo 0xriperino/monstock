@@ -112,7 +112,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
     </section>
     <div className="sb-trading-grid sb-terminal-grid">
       <div className="sb-stack sb-terminal-main">
-        <MarketChart activity={activity.data} pending={activity.isPending} progress={activity.progress} refreshing={activity.isFetching} error={activityError} refresh={() => { void activity.refetch(); }} symbol={market.token.symbol} quote={data.stockToken} />
+        <MarketChart activity={activity.data} previewTrades={activity.previewTrades} pending={activity.isPending} progress={activity.progress} refreshing={activity.isFetching} error={activityError} refresh={() => { void activity.refetch(); }} symbol={market.token.symbol} quote={data.stockToken} />
         <HolderTable activity={activity.data} error={activityError} token={market.token} quote={data.stockToken} price={market.estimatedPrice} explorer={explorer} copy={copyAddress} />
         <RecentTrades activity={activity.data} error={activityError} quote={data.stockToken} explorer={explorer} />
       </div>

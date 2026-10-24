@@ -79,6 +79,7 @@ try {
   assert.equal(await page.getByText('Loading markets…', { exact: true }).count(), 0);
   await page.locator('.sb-lightweight-chart canvas').first().waitFor();
   await page.getByRole('heading', { name: 'Top holders', exact: true }).waitFor();
+  await page.waitForFunction(() => document.querySelector('.sb-holders-panel tbody')?.querySelectorAll('tr').length === 2);
   assert.equal(await page.locator('.sb-holders-panel').first().locator('tbody tr').count(), 2);
   assert.match(await page.locator('.sb-holders-panel').first().locator('tbody tr').first().innerText(), /220/);
   await page.getByRole('button', { name: '5m', exact: true }).click();
