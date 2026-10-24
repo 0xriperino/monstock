@@ -47,7 +47,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
   const quoteReady = Boolean(sameQuote && quote?.status === "ready" && now > 0 && quote.expiresAt > now
     && quote.outputAmount !== null && positive(quote.outputAmount, outputToken.decimals)
     && quote.minimumOutput !== null && positive(quote.minimumOutput, outputToken.decimals)
-    && quote.feeAmount !== null && atomic(quote.feeAmount, inputToken.decimals) !== null && slippageValid);
+    && quote.feeAmount !== null && atomic(quote.feeAmount, data.stockToken.decimals) !== null && slippageValid);
   const tradeEnabled = ready && sufficient && approved && quoteReady && Boolean(actions.requestTradeQuote) && !busy;
   const approvalEnabled = ready && sufficient && !approved && approvalKnown && !busy;
   const seconds = now > 0 ? Math.max(0, Math.ceil((market.epoch.endsAt - now) / 1000)) : null;
@@ -92,7 +92,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
           <p id={`${id}-trade-help`} className={`sb-input-help ${amount && (!amountValid || (balanceReady && !sufficient)) ? "sb-negative" : ""}`}>
             {amount && !amountValid ? `Enter a positive amount with up to ${inputToken.decimals} decimals.` : amountValid && balanceReady && !sufficient ? `Insufficient ${inputToken.symbol} balance.` : "Output is an estimate until the transaction is confirmed."}
           </p>
-          <dl className="sb-details sb-trade-details"><InfoRow label="Trading fee (1%)">{quoteReady ? <><Amount value={quote!.feeAmount} digits={6} /> {inputToken.symbol}</> : "—"}</InfoRow><InfoRow label="Slippage protection">{slippageValid ? `${data.slippageBps / 100}%` : "Unavailable"}</InfoRow><InfoRow label="Minimum received">{quoteReady ? <><Amount value={quote!.minimumOutput} digits={6} /> {outputToken.symbol}</> : "—"}</InfoRow></dl>
+          <dl className="sb-details sb-trade-details"><InfoRow label="Trading fee (1%)">{quoteReady ? <><Amount value={quote!.feeAmount} digits={6} /> {data.stockToken.symbol}</> : "—"}</InfoRow><InfoRow label="Slippage protection">{slippageValid ? `${data.slippageBps / 100}%` : "Unavailable"}</InfoRow><InfoRow label="Minimum received">{quoteReady ? <><Amount value={quote!.minimumOutput} digits={6} /> {outputToken.symbol}</> : "—"}</InfoRow></dl>
           <div className="sb-protection"><ShieldCheck size={16} aria-hidden="true" /><p>Your trade reverts if output falls below the minimum received.</p></div>
           {amountValid && <div className="sb-quote-state" role="status"><span>{quoteError ?? (sameQuote && quote?.status === "error" ? quote.error ?? "Quote unavailable." : sameQuote && quote?.status === "loading" ? "Fetching estimate…" : quoteReady ? "Estimate ready" : actions.requestTradeQuote ? "Refresh the estimate to continue." : "Quoting is awaiting integration.")}</span><Button type="button" variant="ghost" aria-label="Refresh trade estimate" disabled={busy || !actions.requestTradeQuote} onClick={() => requestQuote(amount)}><RefreshCw size={14} aria-hidden="true" />Refresh</Button></div>}
           <div className="sb-approval" role="status"><ShieldCheck size={15} aria-hidden="true" /><span>{approval.status === "approving" ? `Approving ${inputToken.symbol}…` : approval.status === "unknown" ? "Allowance has not been loaded." : approved ? `${inputToken.symbol} spending approved` : approval.status === "error" ? approval.error ?? "Approval failed. Please retry." : `Approve ${inputToken.symbol} before trading.`}</span></div>

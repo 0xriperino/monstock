@@ -8,7 +8,7 @@ import { createMockUIData } from "./mock-data";
 /** Development only. No signing, RPC, simulated execution, or success receipts. */
 export function StockBackPreview() {
   const [data, setData] = useState<StockBackUIData>(() => createMockUIData());
-  const unavailable = () => { throw new Error("Preview only. Connect Developer 4’s integration to submit this action."); };
+  const unavailable = () => { throw new Error("Preview only. Wallet transactions are unavailable in this preview."); };
   const actions: StockBackUIActions = {
     connectWallet: unavailable, switchNetwork: unavailable, requestFaucet: unavailable,
     createCoin: unavailable,

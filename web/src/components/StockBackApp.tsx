@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Rocket, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, ShieldCheck, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
 import { Button, shortAddress } from "./ui";
-import { LaunchpadView, PortfolioView } from "./overview-views";
+import { PortfolioView } from "./overview-views";
+import { DiscoverView } from "./DiscoverView";
 import { TradingView } from "./TradingView";
 import { AutoVaultView } from "./AutoVaultView";
 import "../styles/stockback.css";
@@ -15,10 +16,12 @@ export interface ViewContext extends StockBackAppProps {
   now: number;
   navigate: (view: StockBackView) => void;
   run: (action: () => MaybePromise) => void;
+  launchOpen: boolean;
+  setLaunchOpen: (open: boolean) => void;
 }
 
 const tabs = [
-  { id: "launchpad", label: "Launchpad", icon: Rocket },
+  { id: "launchpad", label: "Discover", icon: Rocket },
   { id: "trading", label: "Trade", icon: ArrowRightLeft },
   { id: "autovault", label: "AutoVault", icon: Layers3 },
   { id: "portfolio", label: "Portfolio", icon: LayoutGrid },
@@ -36,6 +39,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
   const [now, setNow] = useState(0);
   const [invoking, setInvoking] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [launchOpen, setLaunchOpen] = useState(false);
   const actionLock = useRef(false);
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -65,7 +69,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     }).finally(() => { actionLock.current = false; setInvoking(false); });
   }
 
-  const context: ViewContext = { data, actions, ready, busy, now, run, navigate: setView };
+  const context: ViewContext = { data, actions, ready, busy, now, run, navigate: setView, launchOpen, setLaunchOpen };
   const walletLabel = data.wallet.status === "connecting" ? "Connecting…"
     : data.wallet.status === "connected" ? shortAddress(data.wallet.address) : "Connect wallet";
   const tx = data.transaction;
@@ -76,7 +80,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     <header className="sb-topbar">
       <a className="sb-brand" href="#stockback-content" onClick={() => setView("launchpad")} aria-label="StockBack launchpad">
         <span className="sb-brand-symbol"><Layers3 size={25} strokeWidth={2.3} aria-hidden="true" /></span>
-        <span>Stock<span className="sb-brand-light">Back</span><small>MEMES MEET MARKETS</small></span>
+        <span>Stock<span className="sb-brand-light">Back</span></span>
       </a>
       <nav className="sb-nav" aria-label="Main navigation">{tabs.map(({ id, label, icon: Icon }) =>
         <button type="button" key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}
@@ -84,6 +88,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       )}</nav>
       <div className="sb-topbar-actions">
         <span className="sb-network"><span className={`sb-dot ${data.wallet.networkStatus === "wrong" ? "sb-dot--warning" : ""}`} />{data.wallet.networkName}</span>
+        <Button className="sb-header-launch" onClick={() => { setView("launchpad"); setLaunchOpen(true); }} disabled={busy}><Plus size={16} aria-hidden="true" />Launch coin</Button>
         <Button variant="secondary" disabled={busy || data.wallet.status === "connected"}
           onClick={() => run(actions.connectWallet)}><Wallet size={15} aria-hidden="true" />{walletLabel}</Button>
       </div>
@@ -92,9 +97,9 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
       <div className="sb-testnet-strip"><ShieldCheck size={14} aria-hidden="true" /><span>Testnet environment</span><span className="sb-strip-divider" />MockSPYx is a test-only stock representation. No real stocks or funds.</div>
-      <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
+      {view !== "launchpad" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
         <span className="sb-badge"><span className="sb-dot sb-dot--purple" />MockSPYx markets</span>
-      </div>
+      </div>}
 
       {data.wallet.status !== "connected" ? <div className="sb-notice"><Wallet size={18} aria-hidden="true" /><div><strong>Connect to get started</strong><p>Explore the markets. Connect your wallet to trade, launch, or lock tokens.</p></div>
         <Button variant="secondary" disabled={busy} onClick={() => run(actions.connectWallet)}>{data.wallet.status === "connecting" ? "Connecting…" : "Connect wallet"}</Button></div>
@@ -110,7 +115,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       </div>}
       {actionError && <div className="sb-notice sb-notice--error" role="alert"><CircleAlert size={18} aria-hidden="true" /><p>{actionError}</p></div>}
 
-      {view === "launchpad" && <LaunchpadView {...context} />}
+      {view === "launchpad" && <DiscoverView {...context} />}
       {view === "trading" && <TradingView {...context} />}
       {view === "autovault" && <AutoVaultView {...context} />}
       {view === "portfolio" && <PortfolioView {...context} />}
