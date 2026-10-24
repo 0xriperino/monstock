@@ -54,7 +54,7 @@ Launching without a dev buy requires only test MON for network gas. An optional 
 
 Browse launched tokens, search for a community, inspect its quote backing, and open its trading view.
 
-Each StockBack market pairs a meme with its chosen quote asset: **SPYX, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. An asset selector scopes market discovery, wallet balances and portfolio totals, so amounts in different currencies are never added together.
+Each StockBack market pairs a meme with its chosen quote asset: **SPYX, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. Discovery shows pairs across supported quote assets. The selected asset scopes wallet balances, Vault positions and portfolio reward totals, so amounts in different currencies are never added together.
 
 ### Participate as a token holder
 
