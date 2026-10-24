@@ -9,6 +9,7 @@ import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } fr
 import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode, nativeRouterAddress } from "../lib/chain";
 import { optionalUnits } from "../lib/launch";
 import { emptyData, errorMessage, StockBackClient } from "../lib/stockback";
+import { marketPlaceholder } from "../lib/market-placeholder";
 
 export function useStockBack() {
   const account = useAccount();
@@ -37,13 +38,21 @@ export function useStockBack() {
   const snapshot = useQuery({
     queryKey: ["stockback", chain.id, assetId, account.address, selectedId],
     queryFn: () => client!.snapshot(account.address, selectedId),
+    placeholderData: previous => marketPlaceholder(previous, asset, selectedId),
     enabled: Boolean(client), refetchInterval: 15_000,
   });
   const unavailable = "Contracts have not been deployed/configured for this network yet.";
   // Never reuse another account's cached financial values, even during reconnect.
-  const data: StockBackUIData = snapshot.error ? emptyData(chain.name, errorMessage(snapshot.error))
-    : snapshot.data ? { ...snapshot.data, wallet: { ...snapshot.data.wallet }, vault: { ...snapshot.data.vault } }
+  const data: StockBackUIData = snapshot.data ? { ...snapshot.data, wallet: { ...snapshot.data.wallet }, vault: { ...snapshot.data.vault } }
+    : snapshot.error ? emptyData(chain.name, errorMessage(snapshot.error))
     : emptyData(chain.name, deploymentReady ? undefined : unavailable);
+  if (snapshot.error) {
+    data.wallet.stockBalance = null;
+    data.wallet.balancesStatus = "error";
+    data.wallet.balancesError = errorMessage(snapshot.error);
+    data.vault.approval = { status: "unknown", allowance: null };
+    data.vault.positionsStatus = "error";
+  }
   data.wallet.status = connecting || account.status === "connecting" || account.status === "reconnecting" ? "connecting" : account.isConnected ? "connected" : "disconnected";
   data.wallet.address = account.address ?? null;
   data.wallet.networkStatus = !account.isConnected ? "unknown" : account.chainId === chain.id ? "correct" : "wrong";
@@ -75,7 +84,10 @@ export function useStockBack() {
         : { status: "idle" });
       setQuote(null);
       quoteSequence.current++;
-      await queries.invalidateQueries({ queryKey: ["stockback", chain.id] });
+      // Only fresh financial state holds the wallet-action lock. A long first
+      // chart-history scan must never block another approval, trade or launch.
+      await queries.invalidateQueries({ queryKey: ["stockback", chain.id, assetId, account.address, selectedId], exact: true });
+      void queries.invalidateQueries({ predicate: query => query.queryKey[0] === "stockback" && query.queryKey[1] === chain.id && query.queryKey[2] === "activity" }, { cancelRefetch: false });
     } catch (error) {
       if (startedSession === activeSession.current) setTransaction({ status: "error", label, message: errorMessage(error) });
       throw new Error(errorMessage(error));

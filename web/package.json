@@ -15,6 +15,9 @@
     "test:client": "tsx --test src/lib/stockback.test.ts",
     "demo:testnet": "node --env-file=../.env --import tsx scripts/testnet-demo.ts",
     "test:rpc": "tsx --test src/lib/rpc.test.ts",
+    "test:market": "tsx --test src/lib/market-activity.test.ts",
+    "test:loading": "tsx --test src/lib/loading-performance.test.ts src/lib/rpc.test.ts",
+    "test:terminal": "node --import tsx scripts/trading-terminal.test.mjs",
     "test:assets": "tsx scripts/multi-assets.ts",
     "test:assets:browser": "node scripts/multi-assets-browser.mjs",
     "test:native:browser": "node --import tsx scripts/native-browser.mjs"
@@ -22,6 +25,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/react-query": "^5.104.5",
+    "lightweight-charts": "^5.2.1",
     "lucide-react": "1.61.0",
     "next": "16.4.3",
     "postcss": "^8.5.31",

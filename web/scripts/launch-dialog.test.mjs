@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { decodeFunctionData, encodeFunctionResult, parseAbi, parseUnits } from 'viem';
 import { curveLauncherAbi, launcherAbi } from '../src/lib/abis.ts';
+import { respondToMulticall } from './multicall-fixture.mjs';
 
 // Isolated UI regression tests. The wallet and RPC are fixtures; no transaction
 // is signed, broadcast, or sent to a real network, and no user profile is opened.
@@ -27,9 +28,11 @@ async function scenario(name, options, check) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await context.route('https://testnet-rpc.monad.xyz/**', async route => {
+  await context.route(/^https:\/\/(?:testnet-rpc\.monad\.xyz|monad-testnet\.drpc\.org)(?:\/|$)/, async route => {
     const request = route.request().postDataJSON();
     function respond(item) {
+      const multicall = respondToMulticall(item, respond);
+      if (multicall) return multicall;
       const response = { jsonrpc: '2.0', id: item.id };
       if (item.method === 'eth_chainId') return { ...response, result: '0x279f' };
       if (item.method === 'eth_getBalance') return { ...response, result: '0x8ac7230489e80000' };
@@ -102,7 +105,7 @@ async function scenario(name, options, check) {
 }
 
 async function fill(dialog, amount = '100') {
-  const quotePayment = dialog.getByRole('group',{name:'Dev buy payment'}).getByRole('button',{name:`Pay with ${quoteSymbol}`,exact:true});
+  const quotePayment = dialog.getByRole('group',{name:'Dev buy payment'}).getByRole('button',{name:'Pay with SPYX',exact:true});
   if(await quotePayment.count()) await quotePayment.click();
   await dialog.getByLabel('Token name', { exact: true }).fill('YSToken');
   await dialog.getByLabel('Symbol', { exact: true }).fill('YS');
@@ -141,7 +144,8 @@ try {
     await fill(dialog, '0');
     await page.waitForFunction(() => { const button = document.querySelector('.sb-launch-page button[type="submit"]'); return button && !button.disabled; });
     assert.equal(await dialog.getByLabel('Initial stock liquidity', {exact:true}).count(), 0);
-    assert.ok((await dialog.getByRole('complementary',{name:'Launch summary'}).innerText()).includes('Not required'));
+    assert.equal((await dialog.getByRole('complementary',{name:'Launch summary'}).innerText()).includes('Not required'), false);
+    assert.equal(await dialog.getByRole('heading', { name: 'No upfront liquidity', exact: true }).count(), 0);
   });
   await scenario('Missing wallet error is visible on the launch page', { noWallet: true }, async (_page, dialog) => {
     await connect(dialog);

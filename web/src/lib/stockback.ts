@@ -30,6 +30,8 @@ export function emptyData(networkName: string, message?: string): StockBackUIDat
 export type QuoteAssetConfig = TokenInfo & { id: Address; factory: Address };
 type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo; tradingFeeBps: number; launcher?: Address; bondingCurve: boolean };
 type Pending = (label: string, hash?: `0x${string}`) => void;
+type CatalogCache = { reads: Map<string, { expires: number; promise: Promise<unknown> }>; pools: Map<string, Pool> };
+const catalogs = new WeakMap<PublicClient, Map<string, CatalogCache>>();
 
 /** Browser-only integration; contracts and confirmed receipts are the source of truth. */
 export class StockBackClient {
@@ -48,41 +50,73 @@ export class StockBackClient {
     readonly nativeRouter?: Address,
   ) {}
 
+  private catalog() {
+    let contexts = catalogs.get(this.client);
+    if (!contexts) { contexts = new Map(); catalogs.set(this.client, contexts); }
+    const key = JSON.stringify([this.chain.id, this.assets.map(asset => [asset.id, asset.factory]), this.launcher, this.legacyLaunchers, this.curveMode]);
+    let cache = contexts.get(key);
+    if (!cache) { cache = { reads: new Map(), pools: new Map() }; contexts.set(key, cache); }
+    return cache;
+  }
+
+  private memo<T>(key: string, read: () => Promise<T>, ttl = Infinity): Promise<T> {
+    const cache = this.catalog().reads;
+    const old = cache.get(key);
+    if (old && old.expires > Date.now()) return old.promise as Promise<T>;
+    const promise = read().catch(error => { if (cache.get(key)?.promise === promise) cache.delete(key); throw error; });
+    cache.set(key, { promise, expires: Date.now() + ttl });
+    return promise;
+  }
+
+  invalidateCatalog() {
+    const cache = this.catalog();
+    for (const key of cache.reads.keys()) if (key.startsWith("registry:")) cache.reads.delete(key);
+    cache.pools.clear();
+  }
+
   async assertDeployment() {
-    if (await this.client.getChainId() !== this.chain.id) throw new Error("RPC chain does not match the configured network.");
-    const [stockCode, factoryCode, stock] = await Promise.all([
-      this.client.getCode({ address: this.stock }), this.client.getCode({ address: this.factory }),
-      this.client.readContract({ address: this.factory, abi: factoryAbi, functionName: "stockToken" }),
-    ]);
-    if (!stockCode || !factoryCode || getAddress(stock) !== getAddress(this.stock)) throw new Error("Deployment addresses do not match deployed StockBack contracts.");
+    return this.memo(`deployment:${this.stock}:${this.factory}`, async () => {
+      if (await this.client.getChainId() !== this.chain.id) throw new Error("RPC chain does not match the configured network.");
+      const [stockCode, factoryCode, stock] = await Promise.all([
+        this.client.getCode({ address: this.stock }), this.client.getCode({ address: this.factory }),
+        this.client.readContract({ address: this.factory, abi: factoryAbi, functionName: "stockToken" }),
+      ]);
+      if (!stockCode || !factoryCode || getAddress(stock) !== getAddress(this.stock)) throw new Error("Deployment addresses do not match deployed StockBack contracts.");
+    }, 300_000);
   }
 
   private async registeredMarkets(asset: QuoteAssetConfig) {
-    const sources = [
-      ...(this.launcher ? [{ address: this.launcher, bondingCurve: this.curveMode }] : []),
-      ...this.legacyLaunchers.map(address => ({ address, bondingCurve: false })),
-    ];
-    const [legacy, ...launched] = await Promise.all([
-      this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
-      ...sources.map(source => this.client.readContract({ address: source.address, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] })),
-    ]);
-    return [
-      ...legacy.map(market => ({ market, launcher: undefined as Address | undefined, bondingCurve: false })),
-      ...launched.flatMap((markets, index) => markets.map(market => ({ market, launcher: sources[index].address, bondingCurve: sources[index].bondingCurve }))),
-    ];
+    return this.memo(`registry:${asset.id}:${asset.factory}`, async () => {
+      const sources = [
+        ...(this.launcher ? [{ address: this.launcher, bondingCurve: this.curveMode }] : []),
+        ...this.legacyLaunchers.map(address => ({ address, bondingCurve: false })),
+      ];
+      const [legacy, ...launched] = await Promise.all([
+        this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
+        ...sources.map(source => this.client.readContract({ address: source.address, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] })),
+      ]);
+      return [
+        ...legacy.map(market => ({ market, launcher: undefined as Address | undefined, bondingCurve: false })),
+        ...launched.flatMap((markets, index) => markets.map(market => ({ market, launcher: sources[index].address, bondingCurve: sources[index].bondingCurve }))),
+      ];
+    }, 10_000);
   }
 
   private async readPool(asset: QuoteAssetConfig, entry: { market: Address; launcher?: Address; bondingCurve: boolean }): Promise<Pool> {
-    const market = entry.market;
-    const [meme, vault, stock, feeBps] = await Promise.all([
-      this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
-      this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
-      this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
-      entry.launcher ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
-    ]);
-    if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
-    if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
-    return { ...entry, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
+    const pool = await this.memo(`pool:${entry.market}:${entry.launcher ?? "legacy"}:${entry.bondingCurve}`, async () => {
+      const market = entry.market;
+      const [meme, vault, stock, feeBps] = await Promise.all([
+        this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
+        this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
+        this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
+        entry.launcher ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
+      ]);
+      if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
+      if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
+      return { ...entry, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
+    });
+    this.catalog().pools.set(pool.market.toLowerCase(), pool);
+    return pool;
   }
 
   async pools(stock?: Address): Promise<Pool[]> {
@@ -95,6 +129,8 @@ export class StockBackClient {
 
   async pool(id: string): Promise<Pool> {
     if (!isAddress(id)) throw new Error("Invalid market.");
+    const known = this.catalog().pools.get(id.toLowerCase());
+    if (known) return known;
     // Resolve only the requested pool, including current curves and legacy launches.
     // Unrelated markets must not delay or break a trade.
     const assets = [...this.assets.filter(a => a.id.toLowerCase() === this.stock.toLowerCase()),
@@ -123,14 +159,20 @@ export class StockBackClient {
     let totalVaultReward = 0n;
     const positions: VaultPosition[] = [];
     const markets = await Promise.all(pools.map(async pool => {
-      const [name, symbol, reserves, epoch, metadataJSON, pricingReserves] = await Promise.all([
-        this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "name" }),
-        this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "symbol" }),
+      const [identity, reserves, epoch, pricingReserves] = await Promise.all([
+        this.memo(`identity:${pool.meme}:${pool.launcher ?? "legacy"}`, async () => {
+          const [name, symbol, metadataJSON] = await Promise.all([
+            this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "name" }),
+            this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "symbol" }),
+            pool.launcher ? this.client.readContract({ address: pool.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
+          ]);
+          return { name, symbol, metadataJSON };
+        }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "getReserves" }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "nextEpochAt" }),
-        pool.launcher ? this.client.readContract({ address: pool.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
         pool.bondingCurve ? this.client.readContract({ address: pool.market, abi: curveMarketAbi, functionName: "getPricingReserves" }) : Promise.resolve(null),
       ]);
+      const { name, symbol, metadataJSON } = identity;
       const [balance, rewards, stockAllowance, memeAllowance, nativeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "pendingHolderRewards", args: [user] }),
@@ -191,6 +233,7 @@ export class StockBackClient {
     this.onPending(label, hash);
     const receipt = await this.client.waitForTransactionReceipt({ hash, confirmations: 1 });
     if (receipt.status !== "success") throw new Error(`${label} reverted on chain (${hash}).`);
+    if (functionName === "launch" || functionName === "launchMON" || functionName === "createCoin") this.invalidateCatalog();
     return receipt;
   }
 
