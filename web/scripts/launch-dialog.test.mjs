@@ -32,6 +32,7 @@ async function scenario(name, options, check) {
     function respond(item) {
       const response = { jsonrpc: '2.0', id: item.id };
       if (item.method === 'eth_chainId') return { ...response, result: '0x279f' };
+      if (item.method === 'eth_getBalance') return { ...response, result: '0x8ac7230489e80000' };
       if (item.method === 'eth_getCode') return { ...response, result: '0x6000' };
       if (item.method === 'eth_getBlockByNumber') return { ...response, result: { number: '0x1', hash: `0x${'0'.repeat(64)}`, timestamp: '0x69000000', transactions: [] } };
       if (item.method === 'eth_call') {
@@ -101,6 +102,8 @@ async function scenario(name, options, check) {
 }
 
 async function fill(dialog, amount = '100') {
+  const quotePayment = dialog.getByRole('group',{name:'Dev buy payment'}).getByRole('button',{name:`Pay with ${quoteSymbol}`,exact:true});
+  if(await quotePayment.count()) await quotePayment.click();
   await dialog.getByLabel('Token name', { exact: true }).fill('YSToken');
   await dialog.getByLabel('Symbol', { exact: true }).fill('YS');
   await dialog.getByRole('group',{name:'Dev buy input mode'}).getByRole('button',{name:'SPYX amount',exact:true}).click();

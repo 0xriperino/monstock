@@ -9,6 +9,10 @@ import { Amount, Button, EmptyState, InfoRow, LoadingState, Panel, Stat, TokenMa
 export function TradingView({ data, actions, ready, busy, now, run, navigate }: ViewContext) {
   const id = useId();
   const [side, setSide] = useState<TradeSide>("buy");
+  const [payWithQuote, setPayWithQuote] = useState(false);
+  const [buyMode, setBuyMode] = useState<"input" | "tokens">("input");
+  const native = data.nativeTradingAvailable === true && !payWithQuote;
+  const amountMode = native && side === "buy" ? buyMode : "input";
   const [amount, setAmount] = useState("");
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const quoteSequence = useRef(0);
@@ -20,11 +24,11 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
     setQuoteError(null);
     const decimals = nextSide === "buy" ? data.stockToken.decimals : market?.token.decimals ?? 18;
     if (!market || !positive(nextAmount, decimals) || !actions.requestTradeQuote) return;
-    const params: TradeRequest = { marketId: market.id, side: nextSide, amount: nextAmount, slippageBps: data.slippageBps };
+    const params: TradeRequest = { marketId: market.id, side: nextSide, amount: nextAmount, slippageBps: data.slippageBps, paymentAsset: native ? "native" : "quote", amountMode: native && nextSide === "buy" ? buyMode : "input" };
     void Promise.resolve().then(() => actions.requestTradeQuote?.(params)).catch((error: unknown) => {
       if (quoteSequence.current === sequence) setQuoteError(error instanceof Error ? error.message : "Quote unavailable. Try refreshing the estimate.");
     });
-  }, [market?.id, market?.token.decimals, data.stockToken.decimals, data.slippageBps, actions.requestTradeQuote]);
+  }, [market?.id, market?.token.decimals, data.stockToken.decimals, data.slippageBps, actions.requestTradeQuote, native, buyMode]);
 
   useEffect(() => {
     if (busy) return;
@@ -45,16 +49,20 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
   if (data.marketsStatus === "error") return <Panel title="Trading terminal"><EmptyState title="Markets unavailable" error>{data.marketsError ?? "Market data could not be loaded."}</EmptyState></Panel>;
   if (!market) return <Panel title="Select a market"><EmptyState title={data.markets.length ? "Choose your pair" : "No markets yet"}>Select a meme token from the launchpad to open its trading terminal.<Button variant="secondary" onClick={() => navigate("launchpad")}>Explore markets<ArrowRight size={15} aria-hidden="true" /></Button></EmptyState></Panel>;
 
-  const inputToken = side === "buy" ? data.stockToken : market.token;
-  const outputToken = side === "buy" ? market.token : data.stockToken;
-  const inputBalance = side === "buy" ? data.wallet.stockBalance : market.walletBalance;
-  const approval = side === "buy" ? market.stockApproval : market.memeApproval;
-  const amountValid = positive(amount, inputToken.decimals);
-  const sufficient = balanceReady && canSpend(amount, inputBalance, inputToken.decimals);
-  const approved = isApproved(approval, amount, inputToken.decimals);
+  const monToken = {id:"native",name:"Monad",symbol:"MON",decimals:18};
+  const inputToken = side === "buy" ? native ? monToken : data.stockToken : market.token;
+  const displayedInput = amountMode === "tokens" ? market.token : inputToken;
+  const outputToken = side === "buy" ? market.token : native ? monToken : data.stockToken;
+  const inputBalance = side === "buy" ? native ? data.wallet.nativeBalance ?? null : data.wallet.stockBalance : market.walletBalance;
+  const approval = side === "buy" ? market.stockApproval : native ? market.nativeMemeApproval ?? {status:"unknown" as const,allowance:null} : market.memeApproval;
+  const amountValid = positive(amount, displayedInput.decimals);
+  const spendAmount = amountMode === "tokens" ? data.tradeQuote?.maximumInput ?? null : amount;
+  const sufficient = balanceReady && spendAmount !== null && canSpend(spendAmount, inputBalance, inputToken.decimals);
+  const approved = (native && side === "buy") || isApproved(approval, amount, inputToken.decimals);
   const approvalKnown = approval.status !== "unknown";
   const quote = data.tradeQuote;
   const sameQuote = quote?.marketId === market.id && quote.side === side
+    && (quote.paymentAsset ?? "quote") === (native ? "native" : "quote") && (quote.amountMode ?? "input") === amountMode
     && quote.slippageBps === data.slippageBps
     && atomic(quote.amount, inputToken.decimals) !== null
     && atomic(quote.amount, inputToken.decimals) === atomic(amount, inputToken.decimals);
@@ -63,6 +71,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
     && quote.outputAmount !== null && positive(quote.outputAmount, outputToken.decimals)
     && quote.minimumOutput !== null && positive(quote.minimumOutput, outputToken.decimals)
     && quote.feeAmount !== null && atomic(quote.feeAmount, data.stockToken.decimals) !== null && slippageValid);
+  const fundingKnown = amountMode !== "tokens" || quoteReady;
   const tradeEnabled = ready && sufficient && approved && quoteReady && Boolean(actions.requestTradeQuote) && !busy;
   const approvalEnabled = ready && sufficient && !approved && approvalKnown && !busy;
   const seconds = now > 0 ? Math.max(0, Math.ceil((market.epoch.endsAt - now) / 1000)) : null;
@@ -70,7 +79,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
 
   function submitTrade() {
     if (!tradeEnabled || !quote?.minimumOutput) return;
-    const params = { marketId: market!.id, side, amount, slippageBps: data.slippageBps, quoteId: quote.id, minimumOutput: quote.minimumOutput };
+    const params = { marketId: market!.id, side, amount, slippageBps: data.slippageBps, quoteId: quote.id, minimumOutput: quote.minimumOutput, paymentAsset: native ? "native" as const : "quote" as const, amountMode };
     run(() => side === "buy" ? actions.buy(params) : actions.sell(params));
   }
 
@@ -96,23 +105,25 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
           <div className="sb-epoch"><div><Clock3 size={17} aria-hidden="true" /><div><strong>5-minute reward epoch</strong><span className="sb-muted">{seconds === 0 ? "Epoch ended. Settlement may be available." : "Time until the current epoch ends"}</span></div></div><strong className="sb-countdown" role="timer" aria-label="Time until epoch settlement" aria-live="off">{countdown}</strong></div>
           <div className="sb-panel-bottom"><span className="sb-muted">Settlement updates holder reward allocation.</span><Button variant="secondary" disabled={!ready || busy || seconds !== 0 || !market.epoch.canSettle} busy={market.epoch.isSettling} onClick={() => run(() => actions.settleEpoch(market.id))}>Settle epoch</Button></div>
         </Panel>
-        <Panel title="Your balances"><dl className="sb-details"><InfoRow label={`${data.stockToken.symbol}`}><Amount value={balanceReady ? data.wallet.stockBalance : null} /></InfoRow><InfoRow label={market.token.symbol}><Amount value={balanceReady ? market.walletBalance : null} /></InfoRow></dl><div className="sb-panel-bottom"><span className="sb-muted">Test tokens for testnet markets.</span><Button variant="ghost" disabled={!ready || !data.wallet.faucetAvailable || busy} onClick={() => run(actions.requestFaucet)}>Get test tokens<ArrowRight size={14} aria-hidden="true" /></Button></div></Panel>
+        <Panel title="Your balances"><dl className="sb-details">{data.nativeTradingAvailable && <InfoRow label="MON"><Amount value={balanceReady ? data.wallet.nativeBalance ?? null : null} /></InfoRow>}<InfoRow label={`${data.stockToken.symbol}`}><Amount value={balanceReady ? data.wallet.stockBalance : null} /></InfoRow><InfoRow label={market.token.symbol}><Amount value={balanceReady ? market.walletBalance : null} /></InfoRow></dl><div className="sb-panel-bottom"><span className="sb-muted">Test tokens for testnet markets.</span><Button variant="ghost" disabled={!ready || !data.wallet.faucetAvailable || busy} onClick={() => run(actions.requestFaucet)}>Get test tokens<ArrowRight size={14} aria-hidden="true" /></Button></div></Panel>
       </div>
 
       <Panel title="Swap tokens" className="sb-trade-panel" aside={<span className="sb-badge">{(market.tradingFeeBps ?? 100) / 100}% fee</span>}>
         <div className="sb-segmented" role="group" aria-label="Trade direction">{(["buy", "sell"] as const).map((value) => <button type="button" key={value} aria-pressed={side === value} disabled={busy} className={side === value ? `is-active sb-${value}` : ""} onClick={() => { setSide(value); setAmount(""); ++quoteSequence.current; setQuoteError(null); }}>{value === "buy" ? "Buy" : "Sell"} {market.token.symbol}</button>)}</div>
+        {data.nativeTradingAvailable && <div className="sb-segmented sb-payment-options" role="group" aria-label="Payment asset"><button type="button" aria-pressed={native} disabled={busy} className={native ? "is-active" : ""} onClick={() => { setPayWithQuote(false); setAmount(""); ++quoteSequence.current; }}>{side === "buy" ? "Pay with MON" : "Receive MON"}</button><button type="button" aria-pressed={!native} disabled={busy} className={!native ? "is-active" : ""} onClick={() => { setPayWithQuote(true); setAmount(""); ++quoteSequence.current; }}>{side === "buy" ? "Pay with" : "Receive"} {data.stockToken.symbol}</button></div>}
+        {native && side === "buy" && <div className="sb-launch-segment" role="group" aria-label="Buy amount unit"><button type="button" disabled={busy} aria-pressed={buyMode === "input"} onClick={() => { setBuyMode("input"); setAmount(""); ++quoteSequence.current; }}>MON amount</button><button type="button" disabled={busy} aria-pressed={buyMode === "tokens"} onClick={() => { setBuyMode("tokens"); setAmount(""); ++quoteSequence.current; }}>Token amount</button></div>}
         <form className="sb-form" onSubmit={(event) => { event.preventDefault(); submitTrade(); }}>
-          <div className="sb-swap-input"><div className="sb-input-label"><label htmlFor={`${id}-amount`}>You pay</label><span>Balance: <Amount value={balanceReady ? inputBalance : null} /></span></div><div className="sb-input-with-unit"><input id={`${id}-amount`} inputMode="decimal" value={amount} placeholder="0.00" autoComplete="off" disabled={busy} required aria-describedby={`${id}-trade-help`} aria-invalid={Boolean(amount && (!amountValid || (balanceReady && !sufficient)))} onChange={(event) => { setAmount(event.target.value); ++quoteSequence.current; setQuoteError(null); }} /><span>{inputToken.symbol}</span></div></div>
+          <div className="sb-swap-input"><div className="sb-input-label"><label htmlFor={`${id}-amount`}>{amountMode === "tokens" ? "You receive" : "You pay"}</label><span>{amountMode === "tokens" ? "MON balance:" : "Balance:"} <Amount value={balanceReady ? inputBalance : null} /></span></div><div className="sb-input-with-unit"><input id={`${id}-amount`} inputMode="decimal" value={amount} placeholder="0.00" autoComplete="off" disabled={busy} required aria-describedby={`${id}-trade-help`} aria-invalid={Boolean(amount && (!amountValid || (balanceReady && fundingKnown && !sufficient)))} onChange={(event) => { setAmount(event.target.value); ++quoteSequence.current; setQuoteError(null); }} /><span>{displayedInput.symbol}</span></div></div>
           <div className="sb-swap-divider" aria-hidden="true"><ArrowDown size={17} /></div>
-          <div className="sb-swap-output"><span>Estimated receive</span><div><strong>{quoteReady ? <Amount value={quote!.outputAmount} digits={6} /> : "—"}</strong><span>{outputToken.symbol}</span></div></div>
-          <p id={`${id}-trade-help`} className={`sb-input-help ${amount && (!amountValid || (balanceReady && !sufficient)) ? "sb-negative" : ""}`}>
-            {amount && !amountValid ? `Enter a positive amount with up to ${inputToken.decimals} decimals.` : amountValid && balanceReady && !sufficient ? `Insufficient ${inputToken.symbol} balance.` : "Output is an estimate until the transaction is confirmed."}
+          <div className="sb-swap-output"><span>{amountMode === "tokens" ? "Estimated payment" : "Estimated receive"}</span><div><strong>{quoteReady ? <Amount value={amountMode === "tokens" ? quote!.paymentAmount ?? null : quote!.outputAmount} digits={6} /> : "—"}</strong><span>{amountMode === "tokens" ? "MON" : outputToken.symbol}</span></div></div>
+          <p id={`${id}-trade-help`} className={`sb-input-help ${amount && (!amountValid || (balanceReady && fundingKnown && !sufficient)) ? "sb-negative" : ""}`}>
+            {amount && !amountValid ? `Enter a positive amount with up to ${displayedInput.decimals} decimals.` : amountValid && balanceReady && fundingKnown && !sufficient ? `Insufficient ${inputToken.symbol} balance.` : "Output is an estimate until the transaction is confirmed."}
           </p>
-          <dl className="sb-details sb-trade-details"><InfoRow label={`Trading fee (${(market.tradingFeeBps ?? 100) / 100}%)`}>{quoteReady ? <><Amount value={quote!.feeAmount} digits={6} /> {data.stockToken.symbol}</> : "—"}</InfoRow><InfoRow label="Slippage protection">{slippageValid ? `${data.slippageBps / 100}%` : "Unavailable"}</InfoRow><InfoRow label="Minimum received">{quoteReady ? <><Amount value={quote!.minimumOutput} digits={6} /> {outputToken.symbol}</> : "—"}</InfoRow></dl>
+          <dl className="sb-details sb-trade-details">{amountMode === "tokens" && <InfoRow label="Maximum MON payment">{quoteReady ? <><Amount value={quote!.maximumInput ?? null} digits={8} /> MON</> : "—"}</InfoRow>}<InfoRow label={`Trading fee (${(market.tradingFeeBps ?? 100) / 100}%)`}>{quoteReady ? <><Amount value={quote!.feeAmount} digits={6} /> {data.stockToken.symbol}</> : "—"}</InfoRow><InfoRow label="Slippage protection">{slippageValid ? `${data.slippageBps / 100}%` : "Unavailable"}</InfoRow><InfoRow label="Minimum received">{quoteReady ? <><Amount value={quote!.minimumOutput} digits={6} /> {outputToken.symbol}</> : "—"}</InfoRow></dl>
           <div className="sb-protection"><ShieldCheck size={16} aria-hidden="true" /><p>Your trade reverts if output falls below the minimum received.</p></div>
           {amountValid && <div className="sb-quote-state" role="status"><span>{quoteError ?? (sameQuote && quote?.status === "error" ? quote.error ?? "Quote unavailable." : sameQuote && quote?.status === "loading" ? "Fetching estimate…" : quoteReady ? "Estimate ready" : actions.requestTradeQuote ? "Preparing estimate…" : "Quoting is awaiting integration.")}</span><Button type="button" variant="ghost" aria-label="Refresh trade estimate" disabled={busy || !actions.requestTradeQuote} onClick={() => requestQuote(amount, side)}><RefreshCw size={14} aria-hidden="true" />Refresh</Button></div>}
-          <div className="sb-approval" role="status"><ShieldCheck size={15} aria-hidden="true" /><span>{approval.status === "approving" ? `Approving ${inputToken.symbol}…` : approval.status === "unknown" ? "Allowance has not been loaded." : approved ? `${inputToken.symbol} spending approved` : approval.status === "error" ? approval.error ?? "Approval failed. Please retry." : `Approve ${inputToken.symbol} before trading.`}</span></div>
-          {!approved && <Button type="button" className="sb-full" variant="secondary" busy={approval.status === "approving"} disabled={!approvalEnabled} onClick={() => run(() => side === "buy" ? actions.approveStock({ marketId: market.id, amount }) : actions.approveMeme({ marketId: market.id, amount }))}>Approve {inputToken.symbol}</Button>}
+          {!(native && side === "buy") && <><div className="sb-approval" role="status"><ShieldCheck size={15} aria-hidden="true" /><span>{approval.status === "approving" ? `Approving ${inputToken.symbol}…` : approval.status === "unknown" ? "Allowance has not been loaded." : approved ? `${inputToken.symbol} spending approved` : approval.status === "error" ? approval.error ?? "Approval failed. Please retry." : `Approve ${inputToken.symbol} before trading.`}</span></div>
+          {!approved && <Button type="button" className="sb-full" variant="secondary" busy={approval.status === "approving"} disabled={!approvalEnabled} onClick={() => run(() => side === "buy" ? actions.approveStock({ marketId: market.id, amount }) : actions.approveMeme({ marketId: market.id, amount, paymentAsset: native ? "native" : "quote" }))}>Approve {inputToken.symbol}</Button>}</>}
           <Button type="submit" className="sb-full" disabled={!tradeEnabled}>{!ready ? "Connect on Monad Testnet to trade" : `${side === "buy" ? "Buy" : "Sell"} ${market.token.symbol}`}</Button>
         </form>
       </Panel>

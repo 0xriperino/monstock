@@ -16,7 +16,8 @@
     "demo:testnet": "node --env-file=../.env --import tsx scripts/testnet-demo.ts",
     "test:rpc": "tsx --test src/lib/rpc.test.ts",
     "test:assets": "tsx scripts/multi-assets.ts",
-    "test:assets:browser": "node scripts/multi-assets-browser.mjs"
+    "test:assets:browser": "node scripts/multi-assets-browser.mjs",
+    "test:native:browser": "node --import tsx scripts/native-browser.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

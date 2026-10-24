@@ -703,3 +703,7 @@
 .sb-quote-logo--fallback { background:#332747; color:#dfd0ff; font-size:11px; font-weight:700; }
 .sb-quote-value { display:flex; align-items:center; justify-content:flex-end; gap:7px; }
 .sb-card-pair .sb-quote-logo { margin:0 2px; }
+
+.sb-payment-options { margin:10px 0 14px; }
+.sb-trade-panel > .sb-launch-segment { margin-bottom:16px; width:100%; }
+.sb-trade-panel > .sb-launch-segment button { flex:1; }

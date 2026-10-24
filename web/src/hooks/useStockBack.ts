@@ -6,7 +6,8 @@ import { getWalletClient } from "wagmi/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TransactionReceipt, WalletClient } from "viem";
 import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } from "../types/ui";
-import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode } from "../lib/chain";
+import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode, nativeRouterAddress } from "../lib/chain";
+import { optionalUnits } from "../lib/launch";
 import { emptyData, errorMessage, StockBackClient } from "../lib/stockback";
 
 export function useStockBack() {
@@ -30,7 +31,7 @@ export function useStockBack() {
     publicClient, chain, asset.id, asset.factory,
     async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
     (label, hash) => { if (activeSession.current === session) setTransaction({ status: "pending", label, hash, explorerUrl: hash && chain.blockExplorers ? `${chain.blockExplorers.default.url}/tx/${hash}` : undefined }); },
-    quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode,
+    quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode, nativeRouterAddress,
   ) : null, [config, session, asset]);
 
   const snapshot = useQuery({
@@ -47,6 +48,7 @@ export function useStockBack() {
   data.wallet.address = account.address ?? null;
   data.wallet.networkStatus = !account.isConnected ? "unknown" : account.chainId === chain.id ? "correct" : "wrong";
   data.launchAvailable = Boolean(launcherAddress);
+  data.nativeTradingAvailable = Boolean(nativeRouterAddress);
   data.quoteAssets = quoteAssets;
   if (asset) data.stockToken = asset;
   data.tradeQuote = quote;
@@ -110,6 +112,7 @@ export function useStockBack() {
     requestFaucet: () => action(`Claim test ${data.stockToken.symbol}`, () => requireClient().faucet()),
     createCoin: params => action("Create coin", () => {
       if (params.stockTokenId && params.stockTokenId.toLowerCase() !== assetId.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+      if (params.paymentAsset === "native" && optionalUnits(params.devBuyAmount ?? "0") > 0n) return requireClient().launchCurveWithMON(params);
       if (bondingCurveMode) return requireClient().launchCurveCoin(params);
       return params.metadata !== undefined || params.devBuyAmount !== undefined
         ? requireClient().launchCoin(params)
@@ -123,7 +126,7 @@ export function useStockBack() {
       setSelectedId(marketId); setQuote(null); quoteSequence.current++;
     },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
-    approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
+    approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); const spender = params.paymentAsset === "native" ? c.nativeRouter : p.market; if (!spender) throw new Error("MON payments are not configured."); return c.approve(p.meme, spender, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     sell: params => action("Sell meme tokens", () => { if (params.side !== "sell") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
     settleEpoch: id => action("Settle epoch", () => requireClient().settle(id)),

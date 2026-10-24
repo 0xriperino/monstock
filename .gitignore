@@ -21,3 +21,4 @@ web/.env*
 
 shared/asset-local.json
 shared/launcher.local.json
+shared/native-router.local.json

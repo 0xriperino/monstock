@@ -1,6 +1,7 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { createPublicClient, defineChain, getAddress, isAddress } from "viem";
+import nativeDeployment from "../../../shared/native-router.json";
 import launcherDeployment from "../../../shared/launcher.json";
 import registry from "../../../shared/assets.json";
 import type { QuoteAssetConfig } from "./stockback";
@@ -23,7 +24,7 @@ export function configuredAddress(value: string | null | undefined) {
 export const stockAddress = configuredAddress(process.env.NEXT_PUBLIC_STOCK_TOKEN_ADDRESS || (!localMode ? deployments.contracts.stockToken : null));
 export const factoryAddress = configuredAddress(process.env.NEXT_PUBLIC_FACTORY_ADDRESS || (!localMode ? deployments.contracts.factory : null));
 export const deploymentReady = Boolean(stockAddress && factoryAddress);
-export const publicClient = createPublicClient({ chain, transport: rateLimitedHttp(chain.rpcUrls.default.http[0]) });
+export const publicClient = createPublicClient({ chain, transport: localMode ? http(chain.rpcUrls.default.http[0]) : rateLimitedHttp(chain.rpcUrls.default.http[0]) });
 export const wagmiConfig = createConfig({ chains: [chain], connectors: [injected()], transports: { [chain.id]: http(chain.rpcUrls.default.http[0]) }, ssr: true });
 
 const registryAssets = process.env.NEXT_PUBLIC_QUOTE_ASSETS_JSON
@@ -44,3 +45,5 @@ export const launcherAddress = configuredAddress(process.env.NEXT_PUBLIC_LAUNCHE
 const launcherHistory = launcherDeployment as { legacyLaunchers?: string[]; model?: string };
 export const legacyLauncherAddresses = localMode ? [] : (launcherHistory.legacyLaunchers ?? []).map(configuredAddress).filter((address): address is `0x${string}` => Boolean(address));
 export const bondingCurveMode = process.env.NEXT_PUBLIC_BONDING_CURVE === "true" || (!localMode && launcherHistory.model === "bonding-curve");
+
+export const nativeRouterAddress = configuredAddress(process.env.NEXT_PUBLIC_NATIVE_ROUTER_ADDRESS || (!localMode ? nativeDeployment.address : null));

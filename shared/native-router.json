@@ -1,0 +1,32 @@
+{
+  "chainId": 10143,
+  "address": "0x91e1c86dbb2d48776e8d124495c1d4fd7facbe2d",
+  "quotePerMON": "1000",
+  "launcher": "0x5441b3b05c71c89313950129c215e0cf15064551",
+  "legacyLaunchers": [
+    "0x553fea09198095a8f72b8051085e6dc7af7da12c"
+  ],
+  "hash": "0x8cb7ad5bf4b44b5dba123645dda39319a0103bb1df64465c9ba30fc148a45cb7",
+  "seeds": [
+    {
+      "symbol": "SPYX",
+      "hash": "0xb0106072972e3de0c08aca23868c226ab4a19b97f7d32af8c3b9a99a556c1651"
+    },
+    {
+      "symbol": "PYDX",
+      "hash": "0x2f19aa6bc8eb63dd6e197092f9a2e9ac767cc043094449aa4478aa7f3782b6ba"
+    },
+    {
+      "symbol": "NVDAX",
+      "hash": "0xffc01a4a0c0d0b3cd2914eb2ff03f2d9394d377441ea4e0726d8f4821ca85ec4"
+    },
+    {
+      "symbol": "GLDX",
+      "hash": "0x4a7ab5f09c8ae80414cda0509885e0b2fceb198ddc001ff5ec62d4d66ef3997d"
+    },
+    {
+      "symbol": "ANTHROPIC",
+      "hash": "0xcae9ab1df3d40ad9872fc2d005400ca149adfe8389dddfcd40337069423a2588"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { BaseError, formatUnits, getAddress, isAddress, parseUnits, type Abi, type Address, type Chain, type PublicClient, type TransactionReceipt, type WalletClient } from "viem";
-import { factoryAbi, curveMarketAbi, curveLauncherAbi, launcherAbi, rewardMarketAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
+import { factoryAbi, nativeRouterAbi, curveMarketAbi, curveLauncherAbi, launcherAbi, rewardMarketAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
 import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition, TokenInfo, CreateCoinParams } from "../types/ui";
 
 import { decodeMetadata, encodeMetadata, curveLaunchOutput, launchOutput, MEME_SUPPLY, optionalUnits } from "./launch";
@@ -45,6 +45,7 @@ export class StockBackClient {
     readonly launcher?: Address,
     readonly legacyLaunchers: readonly Address[] = [],
     readonly curveMode = false,
+    readonly nativeRouter?: Address,
   ) {}
 
   async assertDeployment() {
@@ -112,10 +113,11 @@ export class StockBackClient {
       ?? pools.find(p => p.stock.toLowerCase() === this.stock.toLowerCase());
     const block = await this.client.getBlock();
     const data = emptyData(this.chain.name);
-    const [stockBalance, claimed] = user ? await Promise.all([
+    const [stockBalance, claimed, nativeBalance] = user ? await Promise.all([
       this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "balanceOf", args: [user] }),
       this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "hasClaimed", args: [user] }),
-    ]) : [null, true];
+      this.nativeRouter ? this.client.getBalance({ address: user }) : Promise.resolve(null),
+    ]) : [null, true, null];
     let totalHolder = 0n;
     let totalPrincipal = 0n;
     let totalVaultReward = 0n;
@@ -129,12 +131,13 @@ export class StockBackClient {
         pool.launcher ? this.client.readContract({ address: pool.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
         pool.bondingCurve ? this.client.readContract({ address: pool.market, abi: curveMarketAbi, functionName: "getPricingReserves" }) : Promise.resolve(null),
       ]);
-      const [balance, rewards, stockAllowance, memeAllowance] = user ? await Promise.all([
+      const [balance, rewards, stockAllowance, memeAllowance, nativeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "pendingHolderRewards", args: [user] }),
         this.client.readContract({ address: pool.stock, abi: stockAbi, functionName: "allowance", args: [user, pool.market] }),
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "allowance", args: [user, pool.market] }),
-      ]) : [null, null, null, null];
+        this.nativeRouter ? this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "allowance", args: [user, this.nativeRouter] }) : Promise.resolve(null),
+      ]) : [null, null, null, null, null];
       if (user && pool.stock.toLowerCase() === this.stock.toLowerCase()) {
         const owned = await this.client.readContract({ address: pool.vault, abi: vaultAbi, functionName: "getPositions", args: [user] });
         await Promise.all(owned.filter(p => !p.withdrawn).map(async p => {
@@ -152,12 +155,14 @@ export class StockBackClient {
         estimatedPrice: (pricingReserves ?? reserves)[1] > 0n ? human((pricingReserves ?? reserves)[0] * 10n ** 18n / (pricingReserves ?? reserves)[1]) : null,
         walletBalance: balance === null ? null : human(balance), claimableRewards: rewards === null ? null : human(rewards),
         stockApproval: stockAllowance === null ? unknownApproval : approval(stockAllowance), memeApproval: memeAllowance === null ? unknownApproval : approval(memeAllowance),
+        nativeMemeApproval: nativeAllowance === null ? unknownApproval : approval(nativeAllowance),
         epoch: { endsAt: Number(epoch) * 1000, canSettle: block.timestamp >= epoch, isSettling: false },
       } satisfies StockBackMarket;
     }));
     data.stockToken = this.assets.find(a => a.id.toLowerCase() === this.stock.toLowerCase()) ?? { ...data.stockToken, id: this.stock };
     data.quoteAssets = [...this.assets];
-    data.wallet = { ...data.wallet, status: user ? "connected" : "disconnected", address: user ?? null, stockBalance: stockBalance === null ? null : human(stockBalance), balancesStatus: "ready", faucetAvailable: Boolean(user && !claimed) };
+    data.wallet = { ...data.wallet, status: user ? "connected" : "disconnected", address: user ?? null, stockBalance: stockBalance === null ? null : human(stockBalance), nativeBalance: nativeBalance === null ? null : human(nativeBalance), balancesStatus: "ready", faucetAvailable: Boolean(user && !claimed) };
+    data.nativeTradingAvailable = Boolean(this.nativeRouter);
     data.markets = markets;
     data.marketsStatus = "ready";
     data.selectedMarketId = selected?.market ?? null;
@@ -177,10 +182,11 @@ export class StockBackClient {
     return { wallet, account: wallet.account };
   }
 
-  private async send(label: string, address: Address, abi: Abi, functionName: string, args: readonly unknown[] = []): Promise<TransactionReceipt> {
+  private async send(label: string, address: Address, abi: Abi, functionName: string, args: readonly unknown[] = [], value?: bigint): Promise<TransactionReceipt> {
     this.onPending(label);
     const { wallet, account } = await this.signer();
-    const simulation = await this.client.simulateContract({ address, abi, functionName, args, account });
+    if (value !== undefined && await this.client.getBalance({ address: account.address }) <= value) throw new Error("Insufficient MON. Keep enough MON for network fees.");
+    const simulation = await this.client.simulateContract({ address, abi, functionName, args, account, ...(value !== undefined ? {value} : {}) });
     const hash = await wallet.writeContract({ ...simulation.request, account, chain: this.chain });
     this.onPending(label, hash);
     const receipt = await this.client.waitForTransactionReceipt({ hash, confirmations: 1 });
@@ -245,6 +251,22 @@ export class StockBackClient {
     return this.send("Launch bonding curve token", this.launcher, curveLauncherAbi, "launch", [{ quoteAsset: this.stock, name: params.name.trim(), symbol: params.symbol, feeBps: BigInt(feeBps), devBuy, minMemeOut: output * 995n / 1000n, metadataJSON }]);
   }
 
+  async launchCurveWithMON(params: CreateCoinParams) {
+    if (!this.nativeRouter) throw new Error("MON payments are not configured.");
+    if (params.stockTokenId && params.stockTokenId.toLowerCase() !== this.stock.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+    if (!params.name.trim() || new TextEncoder().encode(params.name.trim()).length > 128 || !/^[A-Z0-9]{1,12}$/.test(params.symbol)) throw new Error("Enter a token name and a ticker of 1–12 letters or numbers.");
+    const devBuy = optionalUnits(params.devBuyAmount ?? "0");
+    const feeBps = params.tradingFeeBps ?? 100;
+    const output = curveLaunchOutput(devBuy, feeBps);
+    if (devBuy > 0n && (output === 0n || output > MEME_SUPPLY * 75n / 100n)) throw new Error("Dev buy must be at most 75% of the supply.");
+    const metadataJSON = encodeMetadata(params.metadata);
+    const [cost, block] = await Promise.all([
+      this.client.readContract({address:this.nativeRouter,abi:nativeRouterAbi,functionName:"nativeCost",args:[devBuy]}),
+      this.client.getBlock(),
+    ]);
+    return this.send("Launch token with MON",this.nativeRouter,nativeRouterAbi,"launchMON",[{quoteAsset:this.stock,name:params.name.trim(),symbol:params.symbol,feeBps:BigInt(feeBps),devBuy,minMemeOut:output*995n/1000n,metadataJSON},block.timestamp+120n],cost);
+  }
+
   private async checkSpend(token: Address, user: Address, spender: Address, amount: bigint, requireApproval = true) {
     const [balance, allowance] = await Promise.all([
       this.client.readContract({ address: token, abi: stockAbi, functionName: "balanceOf", args: [user] }),
@@ -256,6 +278,7 @@ export class StockBackClient {
 
   async quote(request: TradeRequest): Promise<TradeQuote> {
     if (!Number.isInteger(request.slippageBps) || request.slippageBps < 0 || request.slippageBps >= 10000) throw new Error("Invalid slippage.");
+    if (request.paymentAsset === "native") return this.quoteNative(request);
     const pool = await this.pool(request.marketId);
     const amount = amountUnits(request.amount);
     const blockNumber = await this.client.getBlockNumber({ cacheTime: 0 });
@@ -277,10 +300,60 @@ export class StockBackClient {
     return quote;
   }
 
+  private async quoteNative(request: TradeRequest): Promise<TradeQuote> {
+    if (!this.nativeRouter) throw new Error("MON payments are not configured.");
+    if (request.side === "sell" && request.amountMode === "tokens") throw new Error("Invalid sell amount mode.");
+    const pool = await this.pool(request.marketId);
+    const amount = amountUnits(request.amount);
+    const block = await this.client.getBlock();
+    let output: bigint, input: bigint, maximum: bigint, quoteAmount: bigint, gross: bigint;
+    const read = {address:this.nativeRouter,abi:nativeRouterAbi,blockNumber:block.number!};
+    if (request.side === "buy" && request.amountMode === "tokens") {
+      [input, quoteAmount, output] = await this.client.readContract({...read,functionName:"quoteBuyTokens",args:[pool.market,amount]});
+      maximum = (input * BigInt(10000 + request.slippageBps) + 9999n) / 10000n;
+      gross = quoteAmount;
+    } else if (request.side === "buy") {
+      [output,quoteAmount] = await this.client.readContract({...read,functionName:"quoteBuyMON",args:[pool.market,amount]});
+      input = maximum = amount; gross = quoteAmount;
+    } else {
+      [output,quoteAmount] = await this.client.readContract({...read,functionName:"quoteSellMON",args:[pool.market,amount]});
+      input = maximum = amount;
+      const reserves = pool.bondingCurve
+        ? await this.client.readContract({address:pool.market,abi:curveMarketAbi,functionName:"getPricingReserves",blockNumber:block.number!})
+        : await this.client.readContract({address:pool.market,abi:marketAbi,functionName:"getReserves",blockNumber:block.number!});
+      gross = reserves[0] * amount / (reserves[1] + amount);
+    }
+    const minimum = request.side === "buy" && request.amountMode === "tokens" ? amount : output * BigInt(10000-request.slippageBps)/10000n;
+    if (minimum === 0n) throw new Error("Amount is too small to quote.");
+    const quote:TradeQuote = {...request,id:crypto.randomUUID(),status:"ready",outputAmount:human(output),minimumOutput:human(minimum),feeAmount:human(gross*BigInt(pool.tradingFeeBps)/10000n),paymentAmount:human(input),maximumInput:human(maximum),quoteAmount:human(quoteAmount),expiresAt:Date.now()+45_000,chainDeadline:String(block.timestamp+45n)};
+    for (const [id,old] of this.quotes) if (old.expiresAt<=Date.now()) this.quotes.delete(id);
+    if(this.quotes.size>=32) this.quotes.delete(this.quotes.keys().next().value!);
+    this.quotes.set(quote.id,quote); return quote;
+  }
+
+  private async tradeNative(params: ExecuteTradeParams, quote:TradeQuote) {
+    if (!this.nativeRouter || !quote.chainDeadline || !quote.maximumInput) throw new Error("Refresh your MON estimate.");
+    const pool = await this.pool(params.marketId);
+    const deadline = BigInt(quote.chainDeadline);
+    const amount = amountUnits(params.amount);
+    let receipt:TransactionReceipt;
+    if (params.side === "buy") {
+      receipt = params.amountMode === "tokens"
+        ? await this.send("Buy tokens with MON",this.nativeRouter,nativeRouterAbi,"buyTokens",[pool.market,amount,deadline],amountUnits(quote.maximumInput))
+        : await this.send("Buy tokens with MON",this.nativeRouter,nativeRouterAbi,"buyMON",[pool.market,amountUnits(params.minimumOutput),deadline],amount);
+    } else {
+      const {account} = await this.signer();
+      await this.checkSpend(pool.meme,account.address,this.nativeRouter,amount);
+      receipt = await this.send("Sell tokens for MON",this.nativeRouter,nativeRouterAbi,"sellMON",[pool.market,amount,amountUnits(params.minimumOutput),deadline]);
+    }
+    this.quotes.delete(params.quoteId); return receipt;
+  }
+
   async trade(params: ExecuteTradeParams) {
     const quote = this.quotes.get(params.quoteId);
     if (!quote || quote.expiresAt <= Date.now() || quote.side !== params.side || quote.marketId.toLowerCase() !== params.marketId.toLowerCase()
-      || amountUnits(quote.amount) !== amountUnits(params.amount) || quote.slippageBps !== params.slippageBps || quote.minimumOutput !== params.minimumOutput) throw new Error("Quote changed or expired. Refresh the estimate.");
+      || amountUnits(quote.amount) !== amountUnits(params.amount) || quote.slippageBps !== params.slippageBps || quote.minimumOutput !== params.minimumOutput || (quote.paymentAsset ?? "quote") !== (params.paymentAsset ?? "quote") || (quote.amountMode ?? "input") !== (params.amountMode ?? "input")) throw new Error("Quote changed or expired. Refresh the estimate.");
+    if (params.paymentAsset === "native") return this.tradeNative(params, quote);
     const pool = await this.pool(params.marketId);
     const { account } = await this.signer();
     const amount = amountUnits(params.amount);

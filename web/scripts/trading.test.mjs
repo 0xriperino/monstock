@@ -24,7 +24,8 @@ const quotes = [], transactions = [], receipts = new Map();
 let stallQuotes = false;
 const stalledReads = [];
 const hash = n => `0x${n.toString(16).padStart(64, '0')}`;
-const abiFor = address => address.toLowerCase() === launcher.toLowerCase() ? launcherAbi : address.toLowerCase() === factory.toLowerCase() ? factoryAbi : address.toLowerCase() === market.toLowerCase() ? marketAbi : address.toLowerCase() === vault.toLowerCase() ? vaultAbi : address.toLowerCase() === meme.toLowerCase() ? memeAbi : stockAbi;
+const history = JSON.parse(await readFile(new URL('../../shared/launcher.json',import.meta.url),'utf8')).legacyLaunchers??[];
+const abiFor = address => [launcher,...history].some(a=>a.toLowerCase()===address.toLowerCase()) ? launcherAbi : catalog.assets.some(a=>a.factory.toLowerCase()===address.toLowerCase()) ? factoryAbi : address.toLowerCase() === market.toLowerCase() ? marketAbi : address.toLowerCase() === vault.toLowerCase() ? vaultAbi : address.toLowerCase() === meme.toLowerCase() ? memeAbi : stockAbi;
 await page.exposeFunction('__sendFixtureTransaction', tx => {
   const { functionName, args } = decodeFunctionData({ abi: abiFor(tx.to), data: tx.data });
   transactions.push(functionName);
@@ -44,6 +45,7 @@ await page.route('https://testnet-rpc.monad.xyz/**', async route => {
   const respond = item => {
     const response = { jsonrpc: '2.0', id: item.id };
     if (item.method === 'eth_chainId') return { ...response, result: '0x279f' };
+    if (item.method === 'eth_getBalance') return { ...response, result: '0x8ac7230489e80000' };
     if (item.method === 'eth_getCode') return { ...response, result: '0x6000' };
     if (item.method === 'eth_blockNumber') return { ...response, result: '0x64' };
     if (item.method === 'eth_getBlockByNumber') return { ...response, result: { number: '0x64', hash: hash(100), timestamp: '0x69000000', transactions: [], baseFeePerGas: '0x1' } };
@@ -58,7 +60,7 @@ await page.route('https://testnet-rpc.monad.xyz/**', async route => {
         holdResponse = stallQuotes;
       }
       const values = {
-        stockToken: stock, getMarkets: to.toLowerCase() === launcher.toLowerCase() ? [] : [market], memeToken: meme, vault, metadata: '',
+        stockToken: stock, getMarkets: to.toLowerCase() === factory.toLowerCase() ? [market] : [], memeToken: meme, vault, metadata: '',
         name: 'StockBack Demo', symbol: 'SBDEMO', decimals: 18,
         getReserves: [parseUnits('1000', 18), parseUnits('1000000', 18)],
         nextEpochAt: 9_000_000_000n, hasClaimed: true, pendingHolderRewards: 0n,
@@ -113,6 +115,7 @@ try {
   await page.locator('.sb-topbar').getByRole('button', { name: 'Connect wallet', exact: true }).click();
   await page.getByRole('button', { name: 'Trade SBDEMO', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Trade SBDEMO', exact: true }).click();
+  if(await page.getByRole('button',{name:`Pay with ${quoteSymbol}`,exact:true}).count()) await page.getByRole('button',{name:`Pay with ${quoteSymbol}`,exact:true}).click();
   const input = page.getByLabel('You pay', { exact: true });
   await page.waitForFunction(() => { const input = document.querySelector('input[autocomplete="off"]'); return input && !input.disabled; });
   await input.pressSequentially('3000', { delay: 40 });

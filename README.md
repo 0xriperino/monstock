@@ -56,6 +56,12 @@ Browse launched tokens, search for a community, inspect its quote backing, and o
 
 Each StockBack market pairs a meme with its chosen quote asset: **SPYX, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. Discovery shows pairs across supported quote assets. The selected asset scopes wallet balances, Vault positions and portfolio reward totals, so amounts in different currencies are never added together.
 
+### Pay with MON
+
+Users can buy a meme directly with MON without acquiring its quote token first. Enter a MON budget or the number of meme tokens to buy, review the estimated payment and minimum received, and confirm one purchase. A token-quantity purchase has a maximum MON payment; any unused amount is refunded in the same transaction.
+
+Creators can also pay their optional first buy in MON during launch. The selected quote asset still denominates the market's reserves, trading fees and rewards. Sellers can choose to receive MON, subject to available conversion reserves. Direct quote-token trading remains available.
+
 ### Participate as a token holder
 
 Holding a meme token makes a user eligible for that market's holder reward allocation.
