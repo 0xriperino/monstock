@@ -42,7 +42,7 @@ The UI becomes successful only after a successful receipt, then refreshes reads.
 | RPC | https://testnet-rpc.monad.xyz |
 | Explorer | https://testnet.monadscan.com |
 | Testnet contract addresses | **Deployed and verified** — see `shared/deployments.json` and `shared/verification.json` |
-| Public frontend URL | Vercel publication in progress; final URL is recorded in `shared/hosting.json` |
+| Public frontend URL | **https://monstock-zeta.vercel.app** — verified anonymous public access |
 | Local app | http://127.0.0.1:3100 when started with the command below |
 
 The deployment wallet is `0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C`
@@ -203,6 +203,9 @@ build. `web/vercel.json` declares the Next.js build settings. Keep
 in the public deployment. Never upload the root signing `.env`.
 The connected Vercel project is `monstock` in the user's team. Hosting uses only
 public chain configuration and deployed addresses; no signing key is uploaded.
+The production deployment reached READY and the public browser check loaded the
+real SBDEMO market and on-chain quotes without authentication, synthetic balances,
+or browser errors. Deployment provenance is recorded in `shared/hosting.json`.
 
 Verify all five deployed sources on the supported Monad explorers with:
 
