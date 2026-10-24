@@ -1,7 +1,7 @@
 /** Human-readable decimal strings, never wei or JS floating point amounts. */
 export type TokenAmount = string;
 export type MaybePromise<T = void> = T | Promise<T>;
-export type StockBackView = "launchpad" | "trading" | "autovault" | "portfolio";
+export type StockBackView = "launchpad" | "launch" | "trading" | "autovault" | "portfolio";
 export type LoadStatus = "loading" | "ready" | "error";
 export type LockDays = 30 | 90 | 180;
 export type TradeSide = "buy" | "sell";
@@ -11,14 +11,20 @@ export interface TokenInfo {
   name: string;
   symbol: string;
   decimals: number;
+  image?: string;
+  website?: string;
+  twitter?: string;
+  telegram?: string;
 }
 
 export interface StockBackMarket {
   id: string;
   token: TokenInfo;
+  stockToken?: TokenInfo;
+  tradingFeeBps?: number;
   stockReserve: TokenAmount;
   memeReserve: TokenAmount;
-  /** Estimated MockSPYx per one meme token. Null means unavailable. */
+  /** Estimated quote tokens per one meme token. Null means unavailable. */
   estimatedPrice: TokenAmount | null;
   walletBalance: TokenAmount | null;
   claimableRewards: TokenAmount | null;
@@ -42,7 +48,7 @@ export interface TokenApproval {
 export interface TradeRequest {
   marketId: string;
   side: TradeSide;
-  /** Exact input: MockSPYx for buy, meme tokens for sell. */
+  /** Exact input: quote tokens for buy, meme tokens for sell. */
   amount: TokenAmount;
   slippageBps: number;
 }
@@ -52,7 +58,7 @@ export interface TradeQuote extends TradeRequest {
   status: LoadStatus;
   outputAmount: TokenAmount | null;
   minimumOutput: TokenAmount | null;
-  /** Fee in MockSPYx on both buy and sell, as charged by MemeMarket. */
+  /** Fee in quote tokens on both buy and sell, as charged by MemeMarket. */
   feeAmount: TokenAmount | null;
   expiresAt: number;
   error?: string;
@@ -66,7 +72,11 @@ export interface ExecuteTradeParams extends TradeRequest {
 export interface CreateCoinParams {
   name: string;
   symbol: string;
+  stockTokenId?: string;
   initialStockLiquidity: TokenAmount;
+  devBuyAmount?: TokenAmount;
+  tradingFeeBps?: 100 | 300;
+  metadata?: { image?: string; website?: string; twitter?: string; telegram?: string };
 }
 
 export interface DepositToVaultParams {
@@ -100,6 +110,8 @@ export interface StockBackUIData {
     balancesError?: string;
     faucetAvailable: boolean;
   };
+  launchAvailable?: boolean;
+  quoteAssets?: TokenInfo[];
   stockToken: TokenInfo;
   markets: StockBackMarket[];
   marketsStatus: LoadStatus;
@@ -135,6 +147,7 @@ export interface StockBackUIData {
  * eligibility at execution time. Display guards do not replace contract checks.
  */
 export interface StockBackUIActions {
+  selectQuoteAsset?: (assetId: string) => MaybePromise;
   connectWallet: () => MaybePromise;
   switchNetwork: () => MaybePromise;
   requestFaucet: () => MaybePromise;

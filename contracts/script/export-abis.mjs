@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 const root = new URL('../../', import.meta.url);
-const names = { MockStock: 'stockAbi', MemeToken: 'memeAbi', MemeMarket: 'marketAbi', StockVault: 'vaultAbi', StockBackFactory: 'factoryAbi' };
+const names = { MockStock: 'stockAbi', MemeToken: 'memeAbi', MemeMarket: 'marketAbi', StockVault: 'vaultAbi', StockBackFactory: 'factoryAbi', StockBackLauncher: 'launcherAbi', RewardMarket: 'rewardMarketAbi' };
 await mkdir(new URL('web/src/lib', root), { recursive: true });
 let source = '// Generated from actual Foundry artifacts. Run forge build then node contracts/script/export-abis.mjs.\n';
 for (const [name, exported] of Object.entries(names)) {
@@ -9,4 +9,4 @@ for (const [name, exported] of Object.entries(names)) {
   source += `export const ${exported} = ${JSON.stringify(artifact.abi)} as const;\n`;
 }
 await writeFile(new URL('web/src/lib/abis.ts', root), source);
-console.log('Exported five compiled Foundry ABIs.');
+console.log('Exported compiled Foundry ABIs.');

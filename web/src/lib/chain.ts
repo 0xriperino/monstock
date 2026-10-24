@@ -1,6 +1,9 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { createPublicClient, defineChain, getAddress, isAddress } from "viem";
+import launcherDeployment from "../../../shared/launcher.json";
+import registry from "../../../shared/assets.json";
+import type { QuoteAssetConfig } from "./stockback";
 import deployments from "../../../shared/deployments.json";
 import { rateLimitedHttp } from "./rpc";
 
@@ -22,3 +25,18 @@ export const factoryAddress = configuredAddress(process.env.NEXT_PUBLIC_FACTORY_
 export const deploymentReady = Boolean(stockAddress && factoryAddress);
 export const publicClient = createPublicClient({ chain, transport: rateLimitedHttp(chain.rpcUrls.default.http[0]) });
 export const wagmiConfig = createConfig({ chains: [chain], connectors: [injected()], transports: { [chain.id]: http(chain.rpcUrls.default.http[0]) }, ssr: true });
+
+const registryAssets = process.env.NEXT_PUBLIC_QUOTE_ASSETS_JSON
+  ? JSON.parse(process.env.NEXT_PUBLIC_QUOTE_ASSETS_JSON) as QuoteAssetConfig[]
+  : localMode ? [] : registry.assets;
+export const quoteAssets: QuoteAssetConfig[] = registryAssets.map(asset => {
+  const id = configuredAddress(asset.id);
+  const factory = configuredAddress(asset.factory);
+  if (!id || !factory || asset.decimals !== 18 || !asset.symbol || !asset.name) throw new Error("Invalid quote asset configuration.");
+  return { ...asset, id, factory };
+});
+if (stockAddress && factoryAddress && !quoteAssets.some(a => a.id.toLowerCase() === stockAddress.toLowerCase())) {
+  quoteAssets.unshift({ id: stockAddress, factory: factoryAddress, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 });
+}
+
+export const launcherAddress = configuredAddress(process.env.NEXT_PUBLIC_LAUNCHER_ADDRESS || (!localMode ? launcherDeployment.address : null));

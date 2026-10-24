@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { decodeFunctionData, encodeFunctionResult, parseUnits } from 'viem';
-import { factoryAbi, stockAbi, marketAbi, memeAbi, vaultAbi } from '../src/lib/abis.ts';
+import { factoryAbi, stockAbi, marketAbi, memeAbi, vaultAbi, launcherAbi } from '../src/lib/abis.ts';
 
 // A local application with an isolated EIP-1193 wallet and deterministic RPC.
 // Receipts are test fixtures; no transaction reaches a blockchain or user wallet.
@@ -10,6 +10,7 @@ const url = process.env.E2E_URL ?? 'http://127.0.0.1:3101';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(url).hostname));
 const d = JSON.parse(await readFile(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
 const { stockToken: stock, factory, market, memeToken: meme, vault } = d.contracts;
+const { address: launcher } = JSON.parse(await readFile(new URL('../../shared/launcher.json', import.meta.url), 'utf8'));
 const account = '0x0000000000000000000000000000000000000011';
 const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
 const page = await browser.newPage();
@@ -21,7 +22,7 @@ const quotes = [], transactions = [], receipts = new Map();
 let stallQuotes = false;
 const stalledReads = [];
 const hash = n => `0x${n.toString(16).padStart(64, '0')}`;
-const abiFor = address => address.toLowerCase() === factory.toLowerCase() ? factoryAbi : address.toLowerCase() === market.toLowerCase() ? marketAbi : address.toLowerCase() === vault.toLowerCase() ? vaultAbi : address.toLowerCase() === meme.toLowerCase() ? memeAbi : stockAbi;
+const abiFor = address => address.toLowerCase() === launcher.toLowerCase() ? launcherAbi : address.toLowerCase() === factory.toLowerCase() ? factoryAbi : address.toLowerCase() === market.toLowerCase() ? marketAbi : address.toLowerCase() === vault.toLowerCase() ? vaultAbi : address.toLowerCase() === meme.toLowerCase() ? memeAbi : stockAbi;
 await page.exposeFunction('__sendFixtureTransaction', tx => {
   const { functionName, args } = decodeFunctionData({ abi: abiFor(tx.to), data: tx.data });
   transactions.push(functionName);
@@ -55,7 +56,7 @@ await page.route('https://testnet-rpc.monad.xyz/**', async route => {
         holdResponse = stallQuotes;
       }
       const values = {
-        stockToken: stock, getMarkets: [market], memeToken: meme, vault,
+        stockToken: stock, getMarkets: to.toLowerCase() === launcher.toLowerCase() ? [] : [market], memeToken: meme, vault, metadata: '',
         name: 'StockBack Demo', symbol: 'SBDEMO', decimals: 18,
         getReserves: [parseUnits('1000', 18), parseUnits('1000000', 18)],
         nextEpochAt: 9_000_000_000n, hasClaimed: true, pendingHolderRewards: 0n,

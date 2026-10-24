@@ -18,3 +18,6 @@ web/*.tsbuildinfo
 web/next-env.d.ts
 web/.env*
 !web/.env.example
+
+shared/asset-local.json
+shared/launcher.local.json
