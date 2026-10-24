@@ -45,8 +45,13 @@ The UI becomes successful only after a successful receipt, then refreshes reads.
 | Public frontend URL | Not hosted; hosting credentials are not configured |
 | Local app | http://127.0.0.1:3100 when started with the command below |
 
-Testnet deployment is blocked by missing signing credentials and a funded
-deployer. No testnet addresses or transaction hashes are invented. Real, temporary
+The deployment wallet is `0x7640dfaE2C612aBa5567477aAa91B181F6de1A7C`
+on Monad Testnet (see `shared/deployer.json`). Its signing credential exists only
+in the ignored, access-restricted local `.env`; it is never part of this repository.
+The testnet dry-run passed and estimated about 1.22 MON at the observed gas price;
+3 test MON provides a deployment/demo budget. Deployment is awaiting funding,
+and Vercel publication is awaiting the account connection. No testnet contract
+addresses or transaction hashes are invented. Real, temporary
 **local Anvil** addresses and receipt hashes are saved separately in ignored
 `shared/deployments.local.json` by the local demo. They are not Monad addresses.
 
@@ -182,8 +187,11 @@ RPC. Alternatively the verified committed testnet deployment record provides
 fallback addresses. Remove local Anvil overrides before building for testnet.
 
 For Vercel, set project root to `web`, supply only public frontend variables,
-and run the normal Next.js production build. Never upload the root signing `.env`.
-Hosting was not performed because credentials are absent.
+set the production Git branch to `main`, and run the normal Next.js production
+build. `web/vercel.json` declares the Next.js build settings. Keep
+`NEXT_PUBLIC_USE_ANVIL=false`; never use localhost RPC or local contract addresses
+in the public deployment. Never upload the root signing `.env`.
+Hosting has not yet been performed; the Vercel connection is pending.
 
 ## Interactive demo steps
 

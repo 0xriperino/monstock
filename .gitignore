@@ -6,6 +6,8 @@ broadcast/
 .env*
 !.env.example
 !web/.env.example
+/sites/
+web/.vercel/
 !contracts/.env.example
 shared/deployments.local.json
 shared/local-e2e-report.json

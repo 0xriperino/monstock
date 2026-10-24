@@ -5,5 +5,5 @@
   "status": "not_deployed",
   "contracts": { "stockToken": null, "factory": null, "memeToken": null, "market": null, "vault": null },
   "transactions": [],
-  "blocker": "Deployment signing credentials and funded testnet deployer are not configured."
+  "blocker": "A deployment wallet has been created locally; awaiting Monad Testnet MON funding. No contract deployment has been broadcast."
 }
