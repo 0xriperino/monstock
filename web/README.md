@@ -49,3 +49,13 @@ The integration adds real-chain Anvil and browser E2E scripts; run
 The Monad Testnet contracts are deployed and source-verified. The real testnet
 demo passed nine signed transactions; see `shared/testnet-e2e.json` at the repo
 root. Vercel uses the public deployed addresses and never receives the signing key.
+
+### Launch dialog regression checks
+
+Start `npm run dev -- --port 3101`, then run `npm run test:launch` in another
+terminal. Install Playwright Chromium with `npx playwright install chromium`,
+or set `BROWSER_PATH` to an installed Chromium browser executable.
+These tests use isolated wallet/RPC fixtures against the local app, with no
+real transactions. They check connecting and switching networks inside the
+modal, preserved inputs, missing/rejected wallets, faucet access, unavailable
+balances, and disabled creation when input or funds are insufficient.

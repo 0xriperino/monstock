@@ -104,22 +104,40 @@ function CoinLaunchDialog({ data, actions, ready, busy, run, launchOpen, setLaun
     if (launchOpen && !dialog.current?.open) dialog.current?.showModal();
     if (!launchOpen && dialog.current?.open) dialog.current.close();
   }, [launchOpen]);
-  const balanceReady = ready && data.wallet.balancesStatus === "ready";
+  const walletConnected = data.wallet.status === "connected" && Boolean(data.wallet.address);
+  const balanceReady = ready && data.wallet.balancesStatus === "ready" && data.wallet.stockBalance !== null;
   const sufficient = balanceReady && canSpend(liquidity, data.wallet.stockBalance, data.stockToken.decimals);
   const valid = name.trim().length > 0 && /^[A-Z0-9]{1,12}$/.test(symbol) && sufficient;
+  const actionError = launchError ?? (data.transaction.status === "error" ? data.transaction.message : null);
+  function runLaunchAction(action: () => ReturnType<typeof actions.connectWallet>) {
+    run(async () => {
+      setLaunchError(null);
+      try { await action(); }
+      catch (error) {
+        setLaunchError(error instanceof Error ? error.message : "The action could not complete. Please try again.");
+        throw error;
+      }
+    });
+  }
   return <dialog ref={dialog} className="sb-launch-dialog" aria-labelledby={`${id}-title`} onClose={() => setLaunchOpen(false)} onCancel={(event) => { if (busy) event.preventDefault(); else setLaunchOpen(false); }}>
     <div className="sb-dialog-heading"><span className="sb-pair-symbol"><Plus size={22} aria-hidden="true" /></span><button type="button" aria-label="Close launch form" disabled={busy} onClick={() => setLaunchOpen(false)}><X size={19} /></button></div>
     <span className="sb-eyebrow">YOUR NEXT BIG IDEA</span><h2 id={`${id}-title`}>Launch your coin.</h2><p className="sb-dialog-description">One million tokens. Your own MockSPYx market.</p>
-    <form className="sb-form" onSubmit={(event) => { event.preventDefault(); if (valid && ready && !busy) run(async () => { setLaunchError(null); try { await actions.createCoin({ name: name.trim(), symbol, initialStockLiquidity: liquidity }); } catch (error) { setLaunchError(error instanceof Error ? error.message : "Creation could not complete. Please try again."); throw error; } }); }}>
+    <form className="sb-form" onSubmit={(event) => { event.preventDefault(); if (valid && ready && !busy) runLaunchAction(() => actions.createCoin({ name: name.trim(), symbol, initialStockLiquidity: liquidity })); }}>
       <div className="sb-field"><label htmlFor={`${id}-name`}>Token name</label><input id={`${id}-name`} placeholder="e.g. Market Cat" value={name} onChange={(event) => setName(event.target.value)} maxLength={48} required disabled={busy} /></div>
       <div className="sb-field"><label htmlFor={`${id}-symbol`}>Ticker</label><div className="sb-input-with-prefix"><span>$</span><input id={`${id}-symbol`} placeholder="MCAT" value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} pattern="[A-Z0-9]{1,12}" maxLength={12} required disabled={busy} /></div><small>1–12 letters or numbers.</small></div>
       <div className="sb-field"><label htmlFor={`${id}-liquidity`}>Initial stock liquidity</label><div className="sb-input-with-unit"><input id={`${id}-liquidity`} inputMode="decimal" value={liquidity} onChange={(event) => setLiquidity(event.target.value)} placeholder="0.00" required disabled={busy} aria-describedby={`${id}-help`} /><span>MockSPYx</span></div><small id={`${id}-help`}>{liquidity && !positive(liquidity, data.stockToken.decimals) ? "Enter a positive amount with up to 18 decimals." : balanceReady && positive(liquidity, data.stockToken.decimals) && !sufficient ? "Insufficient MockSPYx balance." : <>Available: <Amount value={balanceReady ? data.wallet.stockBalance : null} /> MockSPYx</>}</small></div>
       <div className="sb-launch-summary"><span><Check size={14} aria-hidden="true" />1,000,000 fixed supply</span><span><LockKeyhole size={14} aria-hidden="true" />Liquidity is permanently locked</span><span><Gift size={14} aria-hidden="true" />40% of trading fees to holders</span></div>
-      {!ready && <p className="sb-input-help">Connect your wallet on Monad Testnet to launch.</p>}
-      {launchError && <p role="alert" className="sb-negative">{launchError}</p>}
+      {!walletConnected ? <p className="sb-input-help">Connect your wallet below to launch. Your form entries will be kept.</p>
+        : !ready ? <p className="sb-input-help">Your wallet is connected. Switch to Monad Testnet below to continue.</p>
+        : data.wallet.balancesStatus === "loading" ? <p role="status" className="sb-input-help">Loading wallet balances…</p>
+        : !balanceReady ? <p role="alert" className="sb-negative">Wallet balances unavailable. {data.wallet.balancesError ?? "Close this form and refresh chain data, then retry."}</p> : null}
+      {balanceReady && !sufficient && data.wallet.faucetAvailable && <div className="sb-input-help"><p>Need MockSPYx? Claim test tokens here. Keep some test MON in your wallet for network fees.</p><Button type="button" variant="secondary" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.requestFaucet)}>Get test MockSPYx</Button></div>}
+      {actionError && <p role="alert" className="sb-negative">{actionError}</p>}
       {data.transaction.status === "pending" && <p role="status" className="sb-input-help">{data.transaction.label ?? "Waiting for wallet confirmation…"}</p>}
       {data.transaction.status === "success" && <p role="status">Transaction confirmed. Your market data will update after confirmation.</p>}
-      <Button type="submit" className="sb-full" disabled={!ready || !valid || busy}>Create coin<ArrowRight size={15} aria-hidden="true" /></Button>
+      {!walletConnected ? <Button type="button" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.connectWallet)}>{data.wallet.status === "connecting" ? "Connecting…" : "Connect wallet"}<ArrowRight size={15} aria-hidden="true" /></Button>
+        : !ready ? <Button type="button" className="sb-full" disabled={busy} onClick={() => runLaunchAction(actions.switchNetwork)}>Switch to Monad Testnet<ArrowRight size={15} aria-hidden="true" /></Button>
+        : <Button type="submit" className="sb-full" disabled={!valid || busy}>Create coin<ArrowRight size={15} aria-hidden="true" /></Button>}
       <small className="sb-centered sb-muted">{busy ? "Complete the current wallet action first." : "Approval and creation require wallet confirmation."}</small>
     </form>
   </dialog>;
