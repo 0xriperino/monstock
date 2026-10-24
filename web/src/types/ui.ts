@@ -11,6 +11,7 @@ export interface TokenInfo {
   name: string;
   symbol: string;
   decimals: number;
+  logo?: string;
   image?: string;
   website?: string;
   twitter?: string;

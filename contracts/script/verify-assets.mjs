@@ -11,8 +11,8 @@ const deployment = JSON.parse(await readFile(new URL('shared/deployments.json', 
 const deployer = JSON.parse(await readFile(new URL('shared/deployer.json', root), 'utf8')).address;
 if (deployment.chainId !== 10143 || deployment.status !== 'deployed') throw new Error('Verified Monad Testnet deployment required.');
 const catalog = JSON.parse(await readFile(new URL('shared/assets.json', root), 'utf8'));
-const jobs = catalog.assets.filter(asset => asset.symbol !== 'MockSPYx').flatMap(asset => [
-  ['MockQuoteAsset', asset.id, ['string', 'string'], [asset.name, asset.symbol]],
+const jobs = catalog.assets.filter(asset => asset.id.toLowerCase() !== deployment.contracts.stockToken.toLowerCase()).flatMap(asset => [
+  ['MockQuoteAsset', asset.id, ['string', 'string'], [asset.onchainName ?? asset.name, asset.onchainSymbol ?? asset.symbol]],
   ['StockBackFactory', asset.factory, ['address', 'address'], [asset.id, deployer]],
 ]);
 const forge = process.env.FORGE_BIN || (process.platform === 'win32' ? join(homedir(), '.foundry/bin/forge.exe') : 'forge');

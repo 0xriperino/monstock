@@ -36,7 +36,7 @@ export const quoteAssets: QuoteAssetConfig[] = registryAssets.map(asset => {
   return { ...asset, id, factory };
 });
 if (stockAddress && factoryAddress && !quoteAssets.some(a => a.id.toLowerCase() === stockAddress.toLowerCase())) {
-  quoteAssets.unshift({ id: stockAddress, factory: factoryAddress, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 });
+  quoteAssets.unshift({ id: stockAddress, factory: factoryAddress, name: "S&P 500", symbol: "SPYX", decimals: 18, logo: "/assets/quotes/spyx.png" });
 }
 
 export const launcherAddress = configuredAddress(process.env.NEXT_PUBLIC_LAUNCHER_ADDRESS || (!localMode ? launcherDeployment.address : null));

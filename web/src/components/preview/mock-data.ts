@@ -9,7 +9,7 @@ export function createMockUIData(now = Date.now()): StockBackUIData {
       status: "connected", address: "preview-wallet", networkStatus: "correct",
       networkName: "Monad Testnet", stockBalance: "1240.50", balancesStatus: "ready", faucetAvailable: false,
     },
-    stockToken: { id: "mock-stock", name: "Mock SPYx", symbol: "MockSPYx", decimals: 18 },
+    stockToken: { id: "mock-stock", name: "S&P 500", symbol: "SPYX", logo: "/assets/quotes/spyx.png", decimals: 18 },
     marketsStatus: "ready",
     markets: [
       { id: "market-cat", token: { id: "cat", name: "Market Cat", symbol: "MCAT", decimals: 18 }, stockReserve: "24500", memeReserve: "1250000", estimatedPrice: "0.0196", walletBalance: "4250", claimableRewards: "12.45", stockApproval: approval, memeApproval: approval, epoch: { endsAt: now + 173000, canSettle: false, isSettling: false } },

@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "StockBack — Memes meet markets",
-  description: "Discover StockBack's MockSPYx meme markets on Monad Testnet.",
+  description: "Discover StockBack's stock-inspired meme markets on Monad Testnet.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -82,10 +82,10 @@ try {
   await page.getByLabel('You pay', { exact: true }).fill('10');
   await page.getByText('Estimate ready', { exact: true }).waitFor();
   await page.evaluate(() => { window.__rejectNextTransaction = true; });
-  await page.getByRole('button', { name: 'Approve MockSPYx', exact: true }).click();
+  await page.getByRole('button', { name: 'Approve SPYX', exact: true }).click();
   await page.locator('.sb-transaction--error').waitFor();
   assert.equal(await page.locator('.sb-transaction--success').count(), 0);
-  await confirmed(page.getByRole('button', { name: 'Approve MockSPYx', exact: true }));
+  await confirmed(page.getByRole('button', { name: 'Approve SPYX', exact: true }));
   await refreshQuote();
   await confirmed(page.getByRole('button', { name: 'Buy BROW', exact: true }).last());
   await page.getByRole('button', { name: 'Sell BROW', exact: true }).first().click();
@@ -107,7 +107,7 @@ try {
     await page.getByLabel('Deposit amount', { exact: true }).fill(amount);
     await page.getByRole('radio', { name: new RegExp(`^${days} days`) }).check();
     await page.getByRole('checkbox', { name: /I understand/ }).check();
-    await confirmed(page.getByRole('button', { name: 'Approve MockSPYx', exact: true }));
+    await confirmed(page.getByRole('button', { name: 'Approve SPYX', exact: true }));
     await confirmed(page.getByRole('button', { name: `Lock for ${days} days`, exact: true }));
   }
   await page.getByText('2 positions', { exact: true }).waitFor();

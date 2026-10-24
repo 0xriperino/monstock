@@ -11,7 +11,7 @@ The exact TypeScript contract is in [`../types/ui.ts`](../types/ui.ts). The app 
 ## Data conventions
 
 - All token amounts, balances, allowances, reserves, quotes, and rewards are non-negative human-readable decimal strings, not base-unit integers. Supply the appropriate token decimals. `null` means unavailable; it is displayed as a dash, never zero.
-- `estimatedPrice` is MockSPYx per meme token. Supply it from the integration; the UI does not price pools or estimate execution.
+- `estimatedPrice` is quote tokens per meme token. Supply it from the integration; the UI does not price pools or estimate execution.
 - `wallet.address` is display data; token and market `id` fields are opaque identifiers. No chain addresses are embedded in components.
 - All timestamps are Unix milliseconds. Displayed dates use UTC. The vault form’s estimated date is based on the client clock; actual unlock eligibility requires both elapsed time and integration-provided `canWithdraw`.
 - `initialView` sets only the initial local view. `selectedMarketId` is controlled: `selectMarket(id)` must publish the selected ID back through data. Navigation itself is local.
@@ -39,7 +39,7 @@ depositToVault({ amount, lockDays })
 withdrawFromVault(positionId)
 ```
 
-The optional `requestTradeQuote({ marketId, side, amount, slippageBps })` callback is required to enable executable trades. Publish its result through `data.tradeQuote`, including a unique quote ID, matching request values, the output, minimum output, 1% fee in MockSPYx on both buys and sells, status, and expiry. Input means MockSPYx on buy and meme tokens on sell. Quote requests fire on input edits and explicit refresh. Debounce and discard obsolete requests in the integration if needed; the UI displays only a matching, unexpired quote.
+The optional `requestTradeQuote({ marketId, side, amount, slippageBps })` callback is required to enable executable trades. Publish its result through `data.tradeQuote`, including a unique quote ID, matching request values, the output, minimum output, the market’s 1% or 3% fee in quote tokens on both buys and sells, status, and expiry. Input means quote tokens on buy and meme tokens on sell. Quote requests fire on input edits and explicit refresh. Debounce and discard obsolete requests in the integration if needed; the UI displays only a matching, unexpired quote.
 
 Clear stale transaction state when beginning a new action. Publish pending, success, and error states from the actual wallet/receipt lifecycle. A resolved callback never generates a success message. Rejected callbacks display an error and allow retry. Approval buttons respect amount-specific allowances; the deposit form also requires acknowledgment of the full lock term. `createCoin` must orchestrate any initial-liquidity approval needed before token creation because no pre-market ID exists yet.
 

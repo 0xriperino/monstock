@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { LoaderCircle, Inbox, AlertCircle } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import type { TokenAmount, TokenApproval } from "../types/ui";
+import type { TokenAmount, TokenApproval, TokenInfo } from "../types/ui";
 
 export function Button({ children, variant = "primary", busy = false, className = "", disabled, ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost"; busy?: boolean }) {
@@ -44,6 +45,15 @@ export function InfoRow({ label, children }: { label: string; children: ReactNod
 
 export function TokenMark({ symbol, small = false }: { symbol: string; small?: boolean }) {
   return <span className={`sb-token-mark ${small ? "sb-token-mark--small" : ""}`} aria-hidden="true">{symbol.slice(0, 2)}</span>;
+}
+
+/** Registry logos identify quote assets; user artwork stays separate. */
+export function QuoteAssetLogo({ token, small = false, className = "" }: { token: TokenInfo; small?: boolean; className?: string }) {
+  const [failedSource, setFailedSource] = useState<string>();
+  const showImage = Boolean(token.logo && failedSource !== token.logo);
+  return <span className={`sb-quote-logo ${small ? "sb-quote-logo--small" : ""} ${showImage ? "" : "sb-quote-logo--fallback"} ${className}`} aria-hidden="true">
+    {showImage ? <img src={token.logo} alt="" width={36} height={36} onError={() => setFailedSource(token.logo)} /> : token.symbol.slice(0, 2)}
+  </span>;
 }
 
 export function Amount({ value, digits = 4 }: { value: TokenAmount | null; digits?: number }) {
