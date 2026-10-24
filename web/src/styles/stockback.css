@@ -60,11 +60,8 @@
 .sb-dot { width: 6px; height: 6px; flex-shrink: 0; display: inline-block; border-radius: 50%; background: #22c55e; }
 .sb-dot--warning { background: #fbbf24; }
 .sb-dot--purple { background: var(--sb-primary); }
-.sb-main { max-width: 1304px; padding: 0 32px; margin: 0 auto; }
+.sb-main { max-width: 1304px; padding: 0 32px 32px; margin: 0 auto; }
 .sb-main:focus { outline: none; }
-.sb-testnet-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 22px; color: var(--sb-muted); font-size: 11px; }
-.sb-testnet-strip > span:first-of-type { color: #c3c3ce; }
-.sb-strip-divider { width: 1px; height: 10px; background: #41414e; margin: 0 3px; }
 .sb-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 32px 0 28px; }
 .sb-page-heading p { margin-top: 8px; color: var(--sb-muted); font-size: 14px; }
 .sb-badge { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-shrink: 0; padding: 5px 9px; border: 1px solid var(--sb-border); border-radius: 6px; color: #c0c0cd; font-size: 11px; font-weight: 500; line-height: 1.4; }
@@ -259,9 +256,6 @@
 .sb-position-summaries > li > div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 15px; font-size: 12px; }
 .sb-position-summaries dl { display: flex; flex-direction: column; gap: 10px; }
 .sb-position-summaries .sb-info-row { font-size: 11px; }
-.sb-footer { display: flex; justify-content: space-between; gap: 18px; margin-top: 56px; border-top: 1px solid var(--sb-border); padding: 22px 0 30px; color: var(--sb-muted); font-size: 10px; }
-.sb-footer > span { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.sb-footer > span:first-child { color: #d1d1da; }
 .sb-spin { animation: sb-spin 1s linear infinite; }
 @keyframes sb-spin { to { transform: rotate(360deg); } }
 @keyframes sb-pulse { 50% { opacity: .45; } }
@@ -308,7 +302,6 @@
   .sb-stats--four { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; }
   .sb-stats--four > .sb-stat:nth-child(2) { border-right: 0; }
   .sb-two-columns { gap: 18px; }
-  .sb-footer { flex-direction: column; gap: 10px; }
 }
 @media (max-width: 700px) {
   .sb-topbar { padding: 15px 16px 0; gap: 0; }
@@ -322,10 +315,6 @@
   .sb-nav-item svg { width: 14px; }
   .sb-nav-item.is-active::after { left: 10px; right: 10px; }
   .sb-main { padding: 0 16px; }
-  .sb-testnet-strip { font-size: 10px; align-items: baseline; gap: 5px; line-height: 1.7; }
-  .sb-testnet-strip > svg { align-self: center; }
-  .sb-strip-divider { display: none; }
-  .sb-testnet-strip > span:first-of-type { margin-right: 5px; }
   .sb-page-heading { margin: 26px 0 22px; align-items: flex-start; }
   .sb-page-heading > .sb-badge { display: none; }
   .sb-page-heading p { font-size: 12px; max-width: 40ch; }
@@ -374,8 +363,6 @@
   .sb-wallet-heading { flex-wrap: wrap; }
   .sb-wallet-heading > div { gap: 8px; }
   .sb-holdings, .sb-position-summaries, .sb-vault-positions { padding-left: 20px; padding-right: 20px; }
-  .sb-footer { margin-top: 36px; padding-bottom: 24px; font-size: 9px; }
-  .sb-footer > span { gap: 5px; }
 }
 @media (max-width: 360px) {
   .sb-brand small { display: none; }
@@ -407,9 +394,8 @@
 .sb-nav-item.is-active::after { background: #a18bff; }
 .sb-topbar-actions { gap: 12px; }
 .sb-topbar-actions .sb-button { min-height: 38px; padding: 9px 14px; border-radius: 7px; }
-.sb-main { max-width: 1400px; padding: 0 28px; }
+.sb-main { max-width: 1400px; padding: 0 28px 32px; }
 .sb-preview { padding: 7px 12px; margin-top: 16px; border: 1px solid #393044; border-radius: 5px; background: #17121f; color: #bfb0dd; font-size: 11px; }
-.sb-testnet-strip { margin: 13px 0 20px; font-size: 10px; }
 .sb-button--primary { color: #100b21; background: #a18bff; }
 .sb-button--primary:hover:not(:disabled) { background: #b7a6ff; }
 .sb-button--secondary { background: #1a1826; border-color: #393246; }
@@ -425,6 +411,8 @@
 .sb-hero-footnote { display: flex; gap: 6px; align-items: center; color: #a49ab7; font-size: 10px; margin-top: 17px; }
 .sb-hero-art { position: absolute; z-index: -1; top: 0; right: -15%; width: 87%; height: 100%; mask-image: linear-gradient(to right, transparent, black 35%); }
 .sb-hero-art > svg { width: 100%; height: 100%; }
+.sb-hero-marker { offset-distance: 52%; offset-rotate: 0deg; offset-anchor: 0px 0px; animation: sb-chart-travel 16s ease-in-out infinite; }
+@keyframes sb-chart-travel { 0%, 100% { offset-distance: 52%; } 25% { offset-distance: 82%; } 75% { offset-distance: 28%; } }
 .sb-hero-pair { position: absolute; bottom: 28px; right: 34px; width: 314px; padding: 16px; background: #14111fe8; border: 1px solid #574772; border-radius: 10px; backdrop-filter: blur(8px); }
 .sb-hero-pair-top { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; }
 .sb-pair-symbol { height: 36px; width: 36px; display: inline-grid; place-items: center; flex-shrink: 0; border: 1px solid #5c4d7d; border-radius: 50%; color: #c5b6ff; background: #251d37; }
@@ -509,7 +497,6 @@
 .sb-share > p { color: var(--sb-muted); font-size: 10px; margin: 13px 0 16px; }
 .sb-share > div { height: 3px; background: #2a2137; position: relative; }
 .sb-share > div::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--share); background: #9a7fe5; }
-.sb-footer { font-size: 10px; margin-top: 30px; }
 .sb-launch-dialog { margin: auto; width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 28px; background: #14101e; color: var(--sb-text); border: 1px solid #59436f; border-radius: 16px; box-shadow: 0 24px 140px #0009; }
 .sb-launch-dialog::backdrop { background: #07050cc9; backdrop-filter: blur(8px); }
 .sb-dialog-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -563,7 +550,6 @@
   .sb-nav-item { gap: 5px; padding: 0 7px; font-size: 10px; }
   .sb-nav-item > svg { width: 13px; }
   .sb-preview { font-size: 9px; line-height: 1.5; margin-top: 12px; }
-  .sb-testnet-strip { font-size: 9px; gap: 6px; margin-bottom: 15px; }
   .sb-strip-divider { display: none; }
   .sb-discover { gap: 24px; }
   .sb-hero { min-height: 450px; padding: 25px 22px 155px; border-radius: 11px; }

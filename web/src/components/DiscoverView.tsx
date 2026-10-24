@@ -9,6 +9,8 @@ import { Amount, Button, EmptyState, LoadingState, TokenMark, atomic, canSpend, 
 type Filter = "all" | "holdings" | "rewards";
 type Sort = "liquidity" | "name";
 
+const HERO_CHART_PATH = "M90 278C180 285 176 214 252 230S334 293 400 223S458 131 517 157S583 226 644 145S717 62 768 105S831 134 910 39";
+
 /** Discovery uses only supplied pool data. The hero artwork is decorative, not a price history. */
 export function DiscoverView(context: ViewContext) {
   const { data, actions, busy, run, navigate, setLaunchOpen } = context;
@@ -53,10 +55,12 @@ export function DiscoverView(context: ViewContext) {
             <pattern id="sb-chart-grid" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M64 0H0V64" stroke="#a999ff" strokeOpacity=".06" /></pattern>
           </defs>
           <rect width="900" height="350" fill="url(#sb-chart-grid)" />
-          <path d="M90 278C180 285 176 214 252 230S334 293 400 223S458 131 517 157S583 226 644 145S717 62 768 105S831 134 910 39V350H90Z" fill="url(#sb-chart-fill)" />
-          <path d="M90 278C180 285 176 214 252 230S334 293 400 223S458 131 517 157S583 226 644 145S717 62 768 105S831 134 910 39" stroke="#836ef9" strokeWidth="9" strokeOpacity=".1" />
-          <path d="M90 278C180 285 176 214 252 230S334 293 400 223S458 131 517 157S583 226 644 145S717 62 768 105S831 134 910 39" stroke="url(#sb-chart-stroke)" strokeWidth="2.5" />
-          <circle cx="517" cy="157" r="9" fill="#171322" stroke="#a999ff" /><circle cx="517" cy="157" r="3" fill="#c1b6ff" />
+          <path d={`${HERO_CHART_PATH}V350H90Z`} fill="url(#sb-chart-fill)" />
+          <path d={HERO_CHART_PATH} stroke="#836ef9" strokeWidth="9" strokeOpacity=".1" />
+          <path d={HERO_CHART_PATH} stroke="url(#sb-chart-stroke)" strokeWidth="2.5" />
+          <g className="sb-hero-marker" style={{ offsetPath: `path("${HERO_CHART_PATH}")` }}>
+            <circle r="9" fill="#171322" stroke="#a999ff" /><circle r="3" fill="#c1b6ff" />
+          </g>
         </svg>
       </div>
       <div className="sb-hero-copy">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Plus, Rocket, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
 import { Button, shortAddress } from "./ui";
 import { PortfolioView } from "./overview-views";
@@ -102,7 +102,7 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
         </select><span>Testnet demo assets · Balances and rewards shown in {data.stockToken.symbol}</span>
       </div>}
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
-      <div className="sb-testnet-strip"><ShieldCheck size={14} aria-hidden="true" /><span>Testnet environment</span><span className="sb-strip-divider" />{data.stockToken.symbol} is a test-only representation. No backing or issuer affiliation.</div>
+
       {view !== "launchpad" && <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
         <span className="sb-badge"><span className="sb-dot sb-dot--purple" />{data.stockToken.symbol} markets</span>
       </div>}
@@ -126,7 +126,6 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
       {view === "autovault" && <AutoVaultView key={`${data.stockToken.id}:${data.selectedMarketId}`} {...context} />}
       {view === "portfolio" && <PortfolioView {...context} />}
 
-      <footer className="sb-footer"><span>StockBack <span className="sb-muted">/</span> Built on Monad</span><span><ArrowDownToLine size={13} aria-hidden="true" />1% trading fee <span className="sb-muted">·</span> 40% holders <span className="sb-muted">/</span> 10% vault <span className="sb-muted">/</span> 50% treasury</span></footer>
     </main>
   </div>;
 }
