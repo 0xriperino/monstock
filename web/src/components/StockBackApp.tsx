@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Rocket, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowRightLeft, CheckCircle2, CircleAlert, Layers3, LayoutGrid, LoaderCircle, Rocket, Wallet } from "lucide-react";
 import type { MaybePromise, StockBackAppProps, StockBackView } from "../types/ui";
 import { Button, shortAddress } from "./ui";
 import { LaunchpadView, PortfolioView } from "./overview-views";
@@ -91,7 +91,6 @@ export function StockBackApp({ data, actions }: StockBackAppProps) {
 
     <main id="stockback-content" className="sb-main" tabIndex={-1}>
       {data.preview && <div className="sb-preview" role="note">Component preview · Synthetic data · No transactions are submitted</div>}
-      <div className="sb-testnet-strip"><ShieldCheck size={14} aria-hidden="true" /><span>Testnet environment</span><span className="sb-strip-divider" />MockSPYx is a test-only stock representation. No real stocks or funds.</div>
       <div className="sb-page-heading"><div><h1>{descriptions[view].title}</h1><p>{descriptions[view].description}</p></div>
         <span className="sb-badge"><span className="sb-dot sb-dot--purple" />MockSPYx markets</span>
       </div>
