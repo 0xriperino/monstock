@@ -10,7 +10,7 @@ Users can launch a meme token, choose its quote asset, and participate in the fe
 
 The result is one connected experience for creating a token, discovering its market, trading, collecting rewards, and putting those rewards to use.
 
-> StockBack runs on Monad Testnet. MockSPYx, PYDX, NVDAX, GLDX and ANTHROPIC are demo quote tokens. They have no real asset backing, redemption rights or affiliation with the companies or issuers their names may reference.
+> StockBack runs on Monad Testnet. SPYX, PYDX, NVDAX, GLDX and ANTHROPIC are demo quote tokens. They have no real asset backing, redemption rights or affiliation with the companies or issuers their names may reference.
 
 ## Why StockBack exists
 
@@ -46,7 +46,7 @@ This gives every StockBack launch a clear starting point: a defined supply, a de
 
 Browse launched tokens, search for a community, inspect its liquidity, and open its trading view.
 
-Each StockBack market pairs a meme with its chosen quote asset: **MockSPYx, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. An asset selector scopes market discovery, wallet balances and portfolio totals, so amounts in different currencies are never added together.
+Each StockBack market pairs a meme with its chosen quote asset: **SPYX, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. An asset selector scopes market discovery, wallet balances and portfolio totals, so amounts in different currencies are never added together.
 
 ### Participate as a token holder
 
@@ -74,7 +74,7 @@ That fee is divided into three allocations:
 | The market's StockVault | **10%** | Fund rewards for users who lock the market's quote asset in that Vault. |
 | Protocol treasury | **50%** | Allocate a defined share to the protocol treasury. |
 
-For example, a buy using **100 MockSPYx** pays **1 MockSPYx** in fees. Of that fee, **0.4 MockSPYx** is allocated to holders, **0.1 MockSPYx** to the associated StockVault, and **0.5 MockSPYx** to the treasury. The remaining **99 MockSPYx** is used for the swap.
+For example, a buy using **100 SPYX** pays **1 SPYX** in fees. Of that fee, **0.4 SPYX** is allocated to holders, **0.1 SPYX** to the associated StockVault, and **0.5 SPYX** to the treasury. The remaining **99 SPYX** is used for the swap.
 
 These percentages describe shares of the fee, rather than shares of the full trade amount. When an allocation has no eligible holders or active Vault positions, that allocation goes to the treasury.
 
@@ -148,7 +148,7 @@ StockBack offers five demo quote assets:
 
 | Asset | Product role |
 | --- | --- |
-| MockSPYx | The original stock-inspired quote asset. Existing markets remain available. |
+| SPYX | The original stock-inspired quote asset. Existing markets remain available. |
 | PYDX | An additional demo quote asset for new meme communities. |
 | NVDAX | A NVIDIA-inspired demo asset. |
 | GLDX | A gold-inspired demo asset. |

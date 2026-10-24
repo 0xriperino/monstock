@@ -20,7 +20,7 @@ const unknownApproval: TokenApproval = { status: "unknown", allowance: null };
 export function emptyData(networkName: string, message?: string): StockBackUIData {
   return {
     wallet: { status: "disconnected", address: null, networkStatus: "unknown", networkName, stockBalance: null, balancesStatus: message ? "error" : "loading", balancesError: message, faucetAvailable: false },
-    stockToken: { id: "", name: "Mock Stock", symbol: "MockSPYx", decimals: 18 },
+    stockToken: { id: "", name: "S&P 500", symbol: "SPYX", decimals: 18, logo: "/assets/quotes/spyx.png" },
     markets: [], marketsStatus: message ? "error" : "loading", marketsError: message, selectedMarketId: null, tradeQuote: null, slippageBps: 50,
     vault: { approval: unknownApproval, positions: [], positionsStatus: message ? "error" : "loading", positionsError: message, totalLockedPrincipal: null, earnedRewards: null },
     portfolio: { claimableHolderRewards: null }, transaction: { status: "idle" },
@@ -41,7 +41,7 @@ export class StockBackClient {
     readonly factory: Address,
     readonly wallet: () => Promise<WalletClient>,
     readonly onPending: Pending = () => {},
-    readonly assets: readonly QuoteAssetConfig[] = [{ id: stock, factory, name: "Mock Stock", symbol: "MockSPYx", decimals: 18 }],
+    readonly assets: readonly QuoteAssetConfig[] = [{ id: stock, factory, name: "S&P 500", symbol: "SPYX", decimals: 18, logo: "/assets/quotes/spyx.png" }],
     readonly launcher?: Address,
   ) {}
 

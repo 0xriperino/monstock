@@ -681,3 +681,10 @@
 
 .sb-launch-fee-options { width:fit-content; }
 .sb-launch-fee-options button { min-width:72px; font-size:14px; padding:10px 20px; }
+
+.sb-quote-logo { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; border-radius:8px; background:#fff; vertical-align:middle; }
+.sb-quote-logo img { width:100%; height:100%; display:block; object-fit:contain; }
+.sb-quote-logo--small { width:22px; height:22px; border-radius:5px; }
+.sb-quote-logo--fallback { background:#332747; color:#dfd0ff; font-size:11px; font-weight:700; }
+.sb-quote-value { display:flex; align-items:center; justify-content:flex-end; gap:7px; }
+.sb-card-pair .sb-quote-logo { margin:0 2px; }

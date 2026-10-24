@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ArrowDownWideNarrow, ArrowRight, Coins, Gift, Layers3, LockKeyhole, Search, ShieldCheck, Sparkles, X } from "lucide-react";
 import type { ViewContext } from "./StockBackApp";
-import { Amount, Button, EmptyState, LoadingState, TokenMark, atomic, positive } from "./ui";
+import { Amount, Button, EmptyState, LoadingState, QuoteAssetLogo, TokenMark, atomic, positive } from "./ui";
 
 type Filter = "all" | "holdings" | "rewards";
 type Sort = "liquidity" | "name";
@@ -74,7 +74,7 @@ export function DiscoverView(context: ViewContext) {
         <div className="sb-hero-footnote"><LockKeyhole size={12} aria-hidden="true" />Fixed supply. Locked liquidity. Built on Monad.</div>
       </div>
       <div className="sb-hero-pair" aria-label="StockBack market model">
-        <div className="sb-hero-pair-top"><span className="sb-pair-symbol"><Layers3 size={21} /></span><div><strong>MEME <span>×</span> {data.stockToken.symbol}</strong><small>One pair. A shared upside.</small></div><ArrowRight size={16} /></div>
+        <div className="sb-hero-pair-top"><QuoteAssetLogo token={data.stockToken} /><div><strong>MEME <span>×</span> {data.stockToken.symbol}</strong><small>One pair. A shared upside.</small></div><ArrowRight size={16} /></div>
       </div>
     </section>
 
@@ -88,7 +88,7 @@ export function DiscoverView(context: ViewContext) {
       {data.marketsStatus === "loading" ? <LoadingState label="Loading markets" /> : data.marketsStatus === "error" ? <EmptyState title="Markets unavailable" error>{data.marketsError ?? "Market data could not be loaded."}</EmptyState> : markets.length === 0 ? <div className="sb-discovery-empty"><EmptyState title={query ? "No matching markets" : filter !== "all" ? "Nothing here yet" : "Be the first to launch"}>{query ? "Try another name, ticker, or market address." : filter !== "all" ? "Connect your wallet on Monad Testnet to explore your balances and rewards." : `Create a coin and start the first ${data.stockToken.symbol} market.`}</EmptyState><Button variant="secondary" onClick={() => { setQuery(""); setFilter("all"); if (data.markets.length === 0) navigate("launch"); }}>{data.markets.length === 0 ? "Launch a coin" : "Show all markets"}<ArrowRight size={14} aria-hidden="true" /></Button></div> : <div className="sb-market-grid">{markets.map((market, index) => <button type="button" className="sb-market-card" key={market.id} disabled={busy} aria-label={`Trade ${market.token.symbol}`} onClick={() => { run(() => actions.selectMarket(market.id)); navigate("trading"); }}>
         <div className="sb-card-top"><span className={`sb-card-avatar sb-card-avatar--${index % 4}`}>{market.token.image ? <img className="sb-token-art" src={market.token.image} alt="" width={44} height={44} /> : <TokenMark symbol={market.token.symbol} />}</span><span className="sb-rewards-tag"><Gift size={12} aria-hidden="true" />Holder rewards</span><ArrowRight size={16} className="sb-card-arrow" aria-hidden="true" /></div>
         <div className="sb-card-identity"><strong>${market.token.symbol}</strong><span>{market.token.name}</span></div>
-        <div className="sb-card-pair">Paired with <span className="sb-stock-mini">S</span><strong>{data.stockToken.symbol}</strong><span className="sb-card-chain">MONAD</span></div>
+        <div className="sb-card-pair">Paired with <QuoteAssetLogo token={market.stockToken ?? data.stockToken} small /><strong>{data.stockToken.symbol}</strong><span className="sb-card-chain">MONAD</span></div>
         <div className="sb-card-stats"><div><span>Stock liquidity</span><strong><Amount value={market.stockReserve} digits={2} /><small>{data.stockToken.symbol}</small></strong></div><div><span>Token price</span><strong><Amount value={market.estimatedPrice} digits={6} /></strong></div></div>
         <div className="sb-card-bottom"><span><span className="sb-dot sb-dot--purple" />{(market.tradingFeeBps ?? 100) / 100}% trading fee</span><span>Trade pair<ArrowRight size={12} aria-hidden="true" /></span></div>
       </button>)}</div>}

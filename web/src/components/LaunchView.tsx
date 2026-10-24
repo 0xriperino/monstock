@@ -4,7 +4,7 @@ import { useId, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Gift, Globe, ImagePlus, Info, Layers3, LockKeyhole, Rocket, ShieldCheck, X } from "lucide-react";
 import { formatUnits } from "viem";
 import type { ViewContext } from "./StockBackApp";
-import { Amount, Button, atomic } from "./ui";
+import { Amount, Button, QuoteAssetLogo, atomic } from "./ui";
 import { devBuyForPercent, encodeMetadata, launchOutput, MEME_SUPPLY } from "../lib/launch";
 
 export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewContext) {
@@ -49,8 +49,8 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
   catch (error) { linksError = error instanceof Error ? error.message : "Check your project links."; }
   const valid = Boolean(name.trim() && name.length <= 48 && new TextEncoder().encode(name.trim()).length <= 128 && /^[A-Z0-9]{1,12}$/.test(symbol) && initial > 0n && devValid && !linksError && !imageError && sufficient);
   const launchSuccess = submitted && data.transaction.status === "success" && data.transaction.label === "Create coin" && data.transaction.hash !== submittedHash;
-  const categories = ["All assets", "Stocks", "Commodities", "Private companies"];
-  const assets = (data.quoteAssets ?? [asset]).filter(token => category === "All assets" || (category === "Commodities" ? token.symbol === "GLDX" : category === "Private companies" ? token.symbol === "ANTHROPIC" : token.symbol !== "GLDX" && token.symbol !== "ANTHROPIC"));
+  const categories = ["All assets", "Stocks & ETFs", "Commodities", "Private companies", "Custom"];
+  const assets = (data.quoteAssets ?? [asset]).filter(token => category === "All assets" || (category === "Commodities" ? token.symbol === "GLDX" : category === "Private companies" ? token.symbol === "ANTHROPIC" : category === "Custom" ? token.symbol === "PYDX" : !["GLDX", "ANTHROPIC", "PYDX"].includes(token.symbol)));
 
   async function chooseImage(file?: File) {
     const sequence = ++uploadSequence.current;
@@ -126,7 +126,7 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
 
         <section className="sb-launch-section"><h2>Quote token</h2><p>Your token will trade against this asset. Fees and rewards are paid in the same token.</p>
           <div className="sb-launch-categories" role="group" aria-label="Quote asset category">{categories.map(item => <button type="button" key={item} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>
-          <div className="sb-launch-asset-grid" role="group" aria-label="Launch quote asset">{assets.map(token => <button type="button" key={token.id} aria-pressed={token.id.toLowerCase() === asset.id.toLowerCase()} disabled={locked} onClick={() => { setError(undefined); perform(() => actions.selectQuoteAsset?.(token.id)); }}><span className={`sb-launch-asset-icon sb-launch-asset-icon--${token.symbol.toLowerCase()}`}>{token.symbol === "GLDX" ? <Layers3 size={21} /> : token.symbol === "ANTHROPIC" ? "AI" : token.symbol.slice(0, 2)}</span><span><strong>{token.symbol}</strong><small>{token.name.replace(/^Mock /, "")}</small></span>{token.id.toLowerCase() === asset.id.toLowerCase() && <Check size={15} />}</button>)}</div>
+          <div className="sb-launch-asset-grid" role="group" aria-label="Launch quote asset">{assets.map(token => <button type="button" key={token.id} aria-pressed={token.id.toLowerCase() === asset.id.toLowerCase()} disabled={locked} onClick={() => { setError(undefined); perform(() => actions.selectQuoteAsset?.(token.id)); }}><QuoteAssetLogo token={token} /><span><strong>{token.symbol}</strong><small>{token.name}</small></span>{token.id.toLowerCase() === asset.id.toLowerCase() && <Check size={15} />}</button>)}</div>
           <small className="sb-launch-demo-note">Demo assets on Monad Testnet. No real asset backing or issuer affiliation.</small>
         </section>
 
@@ -139,7 +139,7 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
       <aside className="sb-launch-aside" aria-label="Launch summary">
         <div className="sb-launch-summary-title"><h2>Launch summary</h2><span className="sb-badge">REWARD</span></div>
         <div className="sb-launch-token-preview">{image ? <img src={image} alt="" width={44} height={44} /> : <span><Rocket size={22} /></span>}<div><strong>{name.trim() || "Your next big idea"}</strong><small>{symbol || "TOKEN"} / {asset.symbol}</small></div></div>
-        <dl className="sb-launch-summary-rows"><div><dt>Launchpad</dt><dd>StockBack</dd></div><div><dt>Fee model</dt><dd>Reward token</dd></div><div><dt>Network</dt><dd>Monad Testnet</dd></div><div><dt>Supply</dt><dd>1 million</dd></div><div><dt>Trading fee</dt><dd>{feeBps / 100}%</dd></div><div><dt>Holder share of fees</dt><dd className="sb-accent">40%</dd></div><div><dt>Transfer tax</dt><dd>None</dd></div><div><dt>Quote asset</dt><dd>{asset.symbol}</dd></div><div><dt>Initial liquidity</dt><dd><Amount value={liquidity} /> {asset.symbol}</dd></div><div><dt>Dev buy</dt><dd>{supplyPercent}% of supply</dd></div><div className="sb-launch-total"><dt>Total quote tokens</dt><dd><Amount value={formatUnits(total, 18)} /> {asset.symbol}</dd></div><div><dt>Network fee</dt><dd>Shown in wallet · MON</dd></div></dl>
+        <dl className="sb-launch-summary-rows"><div><dt>Launchpad</dt><dd>StockBack</dd></div><div><dt>Fee model</dt><dd>Reward token</dd></div><div><dt>Network</dt><dd>Monad Testnet</dd></div><div><dt>Supply</dt><dd>1 million</dd></div><div><dt>Trading fee</dt><dd>{feeBps / 100}%</dd></div><div><dt>Holder share of fees</dt><dd className="sb-accent">40%</dd></div><div><dt>Transfer tax</dt><dd>None</dd></div><div><dt>Quote asset</dt><dd className="sb-quote-value"><QuoteAssetLogo token={asset} small />{asset.symbol}</dd></div><div><dt>Initial liquidity</dt><dd><Amount value={liquidity} /> {asset.symbol}</dd></div><div><dt>Dev buy</dt><dd>{supplyPercent}% of supply</dd></div><div className="sb-launch-total"><dt>Total quote tokens</dt><dd><Amount value={formatUnits(total, 18)} /> {asset.symbol}</dd></div><div><dt>Network fee</dt><dd>Shown in wallet · MON</dd></div></dl>
         <div className="sb-launch-guarantees"><p><LockKeyhole size={16} /><span>Liquidity is permanently locked. No additional supply can be minted.</span></p><p><Globe size={16} /><span>Artwork and project links are saved with your launch and cannot be changed.</span></p><p><ShieldCheck size={16} /><span>No separate platform launch fee. Network gas is paid in test MON.</span></p></div>
         <div className="sb-launch-submit">
           {!walletConnected ? <Button type="button" className="sb-full" disabled={locked} onClick={() => perform(actions.connectWallet)}>Connect wallet<ArrowRight size={16} /></Button> : !ready ? <Button type="button" className="sb-full" disabled={locked} onClick={() => perform(actions.switchNetwork)}>Switch to Monad Testnet</Button> : <Button type="submit" className="sb-full" disabled={!valid || locked || data.launchAvailable === false} busy={busy}>Launch token<Rocket size={16} /></Button>}

@@ -152,7 +152,7 @@ try {
   await scenario('Insufficient balance exposes the faucet and signing rejection on the launch page', { correctNetwork: true, balance: '0', width: 390 }, async (page, dialog) => {
     await fill(dialog);
     await connect(dialog);
-    const faucet = dialog.getByRole('button', { name: 'Get test MockSPYx', exact: true });
+    const faucet = dialog.getByRole('button', { name: 'Get test SPYX', exact: true });
     await faucet.waitFor();
     assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
     await faucet.click();
