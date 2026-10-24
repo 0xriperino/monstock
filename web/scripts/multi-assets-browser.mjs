@@ -66,7 +66,11 @@ try {
   console.log('PASS browser launch/faucet/pair',asset.symbol);
  }
  await dialog.getByRole('button',{name:'Back to discover'}).click();
- await page.getByRole('combobox',{name:'Pair asset',exact:true}).selectOption({label: catalog.assets[1].symbol});
+ assert.equal(await page.getByRole('combobox',{name:'Pair asset',exact:true}).count(), 0);
+ for (const index of catalog.assets.keys()) {
+  await page.getByRole('button',{name:`Trade UI${index}`,exact:true}).waitFor();
+  assert.ok((await page.getByRole('button',{name:`Trade UI${index}`,exact:true}).innerText()).includes(catalog.assets[index].symbol));
+ }
  await page.getByRole('button',{name:'Trade UI1',exact:true}).click();
  await page.getByLabel('You pay',{exact:true}).fill('10');
  await page.getByText('Estimate ready',{exact:true}).waitFor();

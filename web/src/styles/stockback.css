@@ -440,8 +440,6 @@
 .sb-discovery-filters button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 12px; background: transparent; border: 1px solid #3a304b; border-radius: 7px; color: #aaa0bd; font-size: 11px; transition: background .15s, color .15s; }
 .sb-discovery-filters button:hover { border-color: #77628f; color: #e2d7fa; }
 .sb-discovery-filters button[aria-pressed="true"] { background: #322640; border-color: #8d72bb; color: #e1d2ff; }
-.sb-pair-filter { display: inline-flex; align-items: center; gap: 7px; color: var(--sb-muted); font-size: 10px; white-space: nowrap; }
-.sb-pair-filter strong { color: #c2b4d8; font-weight: 500; }
 .sb-market-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 17px; }
 .sb-market-section-heading h2 { display: flex; gap: 9px; align-items: center; font-size: 16px; letter-spacing: -.03em; }
 .sb-market-section-heading h2 > span { color: #b2a0c8; background: #231b2d; border: 1px solid #3c304c; border-radius: 5px; padding: 0 6px; font-size: 10px; font-weight: 400; }
@@ -567,7 +565,6 @@
   .sb-discovery-filters > div { gap: 6px; }
   .sb-discovery-filters button { font-size: 9px; padding: 6px 9px; min-height: 32px; gap: 5px; }
   .sb-discovery-filters button > svg { width: 12px; }
-  .sb-pair-filter { font-size: 9px; }
   .sb-market-section-heading h2 { font-size: 15px; }
   .sb-market-section-heading > span { display: none; }
   .sb-market-grid { grid-template-columns: 1fr; gap: 12px; }
@@ -583,10 +580,7 @@
   .sb-launch-dialog { padding: 22px; }
 }
 
-.sb-quote-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 20px; padding:14px 18px; border:1px solid #30283e; border-radius:12px; background:#171322; }
-.sb-quote-bar label { font-weight:600; font-size:14px; }
-.sb-quote-bar span { color:#a49aad; font-size:12px; }
-.sb-quote-bar select,.sb-field select { background:#211a30; color:#e9e1ff; border:1px solid #51416a; border-radius:8px; padding:10px 14px; font:inherit; }
+.sb-field select { background:#211a30; color:#e9e1ff; border:1px solid #51416a; border-radius:8px; padding:10px 14px; font:inherit; }
 .sb-field select { width:100%; }
 
 /* Full-page reward token launch. */

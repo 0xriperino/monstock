@@ -78,7 +78,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
     <section className="sb-market-header" aria-label="Selected market">
       <div className="sb-token-cell">{market.token.image ? <img src={market.token.image} alt="" width={44} height={44} style={{borderRadius:10}} /> : <TokenMark symbol={market.token.symbol} />}<div><h2>{market.token.symbol}<span className="sb-muted"> / {data.stockToken.symbol}</span></h2><p>{market.token.name}</p><div className="sb-token-links">{([ ["Website", market.token.website], ["X / Twitter", market.token.twitter], ["Telegram", market.token.telegram] ] as const).filter(([,url]) => url).map(([label,url]) => <a key={label} href={url} target="_blank" rel="noopener noreferrer">{label} ↗</a>)}</div></div></div>
       <div className="sb-field sb-market-selector"><label htmlFor={`${id}-market`} className="sb-sr-only">Selected market</label><select id={`${id}-market`} value={market.id} disabled={busy} onChange={(event) => { const marketId = event.currentTarget.value; setAmount(""); setQuoteError(null); ++quoteSequence.current; run(() => actions.selectMarket(marketId)); }}>
-        {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / {data.stockToken.symbol}</option>)}
+        {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / {(item.stockToken ?? data.stockToken).symbol}</option>)}
       </select></div>
     </section>
     <div className="sb-trading-grid">

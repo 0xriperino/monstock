@@ -104,8 +104,9 @@ export class StockBackClient {
 
   async snapshot(user?: Address, selectedId?: string | null): Promise<StockBackUIData> {
     await this.assertDeployment();
-    const pools = await this.pools(this.stock);
-    const selected = pools.find(p => p.market.toLowerCase() === selectedId?.toLowerCase()) ?? pools[0];
+    const pools = await this.pools();
+    const selected = pools.find(p => p.stock.toLowerCase() === this.stock.toLowerCase() && p.market.toLowerCase() === selectedId?.toLowerCase())
+      ?? pools.find(p => p.stock.toLowerCase() === this.stock.toLowerCase());
     const block = await this.client.getBlock();
     const data = emptyData(this.chain.name);
     const [stockBalance, claimed] = user ? await Promise.all([
@@ -127,10 +128,10 @@ export class StockBackClient {
       const [balance, rewards, stockAllowance, memeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "pendingHolderRewards", args: [user] }),
-        this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "allowance", args: [user, pool.market] }),
+        this.client.readContract({ address: pool.stock, abi: stockAbi, functionName: "allowance", args: [user, pool.market] }),
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "allowance", args: [user, pool.market] }),
       ]) : [null, null, null, null];
-      if (user) {
+      if (user && pool.stock.toLowerCase() === this.stock.toLowerCase()) {
         const owned = await this.client.readContract({ address: pool.vault, abi: vaultAbi, functionName: "getPositions", args: [user] });
         await Promise.all(owned.filter(p => !p.withdrawn).map(async p => {
           const reward = await this.client.readContract({ address: pool.vault, abi: vaultAbi, functionName: "pendingRewards", args: [p.id] });
@@ -141,7 +142,7 @@ export class StockBackClient {
           positions.push({ id: `${pool.vault}:${p.id}`, principal: human(p.amount), lockDays: days, unlocksAt: Number(p.unlockAt) * 1000, earnedRewards: human(reward), canWithdraw: block.timestamp >= p.unlockAt, isWithdrawing: false });
         }));
       }
-      totalHolder += rewards ?? 0n;
+      if (pool.stock.toLowerCase() === this.stock.toLowerCase()) totalHolder += rewards ?? 0n;
       return {
         id: pool.market, stockToken: pool.stockToken, tradingFeeBps: pool.tradingFeeBps, token: { id: pool.meme, name, symbol, decimals: 18, ...decodeMetadata(metadataJSON) }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
         estimatedPrice: reserves[1] > 0n ? human(reserves[0] * 10n ** 18n / reserves[1]) : null,

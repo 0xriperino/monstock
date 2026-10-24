@@ -114,7 +114,13 @@ export function useStockBack() {
         ? requireClient().launchCoin(params)
         : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
     }),
-    selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
+    selectMarket: marketId => {
+      if (locked.current) throw new Error("Complete the current wallet action first.");
+      const market = data.markets.find(m => m.id.toLowerCase() === marketId.toLowerCase());
+      if (!market) throw new Error("Unknown market.");
+      if (market.stockToken) setAssetId(market.stockToken.id);
+      setSelectedId(marketId); setQuote(null); quoteSequence.current++;
+    },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),
     approveMeme: params => action("Approve meme tokens", async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.meme, p.market, params.amount); }),
     buy: params => action("Buy meme tokens", () => { if (params.side !== "buy") throw new Error("Trade direction mismatch."); return requireClient().trade(params); }),
