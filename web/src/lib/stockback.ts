@@ -64,9 +64,18 @@ export class StockBackClient {
 
   async pool(id: string) {
     if (!isAddress(id)) throw new Error("Invalid market.");
-    const pool = (await this.pools()).find(p => p.market.toLowerCase() === id.toLowerCase());
-    if (!pool) throw new Error("Market is not registered with this Factory.");
-    return pool;
+    const markets = await this.client.readContract({ address: this.factory, abi: factoryAbi, functionName: "getMarkets" });
+    const market = markets.find(address => address.toLowerCase() === id.toLowerCase());
+    if (!market) throw new Error("Market is not registered with this Factory.");
+    // Quotes and actions need only this pool. An unrelated market must not delay
+    // or break a trade, and typing must not reread every market's metadata.
+    const [meme, vault, stock] = await Promise.all([
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
+      this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
+    ]);
+    if (getAddress(stock) !== getAddress(this.stock)) throw new Error("Market uses an unexpected stock token.");
+    return { market, meme, vault };
   }
 
   async snapshot(user?: Address, selectedId?: string | null): Promise<StockBackUIData> {

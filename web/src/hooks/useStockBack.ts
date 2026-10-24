@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useSwitchChain } from "wagmi";
 import { getWalletClient } from "wagmi/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -73,17 +73,22 @@ export function useStockBack() {
       throw new Error(errorMessage(error));
     } finally { locked.current = false; }
   }
-  async function requestTradeQuote(request: TradeRequest) {
+  const requestTradeQuote = useCallback(async (request: TradeRequest) => {
     const sequence = ++quoteSequence.current;
     const requestedSession = session;
     setQuote({ ...request, id: "loading", status: "loading", outputAmount: null, minimumOutput: null, feeAmount: null, expiresAt: 0 });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const next = await requireClient().quote(request);
+      if (!client) throw new Error("Contracts have not been deployed/configured for this network yet.");
+      const next = await Promise.race([
+        client.quote(request),
+        new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error("Estimate timed out. Refresh the estimate to retry.")), 15_000); }),
+      ]);
       if (sequence === quoteSequence.current && requestedSession === activeSession.current) setQuote(next);
     } catch (error) {
       if (sequence === quoteSequence.current && requestedSession === activeSession.current) setQuote({ ...request, id: "error", status: "error", outputAmount: null, minimumOutput: null, feeAmount: null, expiresAt: 0, error: errorMessage(error) });
-    }
-  }
+    } finally { clearTimeout(timeout); }
+  }, [client, session]);
   const actions: StockBackUIActions = {
     connectWallet: () => action("Connect wallet", async () => {
       const connector = connectors.find(c => c.type === "injected");
