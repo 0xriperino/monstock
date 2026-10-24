@@ -9,7 +9,8 @@ const url = process.env.E2E_URL ?? 'http://127.0.0.1:3101';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(url).hostname), 'Only a local app may be tested.');
 const deployment = JSON.parse(await readFile(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
 const launcher = JSON.parse(await readFile(new URL("../../contracts/out/StockBackLauncher.sol/StockBackLauncher.json",import.meta.url),"utf8"));
-const abi = [...launcher.abi, ...parseAbi([
+const curveLauncher = JSON.parse(await readFile(new URL("../../contracts/out/BondingCurveLauncher.sol/BondingCurveLauncher.json",import.meta.url),"utf8"));
+const abi = [...curveLauncher.abi, ...launcher.abi, ...parseAbi([
   'function stockToken() view returns (address)',
   'function getMarkets() view returns (address[])',
   'function balanceOf(address) view returns (uint256)',
@@ -22,7 +23,7 @@ const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_
 let passed = 0;
 
 async function scenario(name, options, check) {
-  if (process.env.LAUNCH_SCENARIO && !name.includes(process.env.LAUNCH_SCENARIO)) return;
+  if (process.env.LAUNCH_SCENARIO && !process.env.LAUNCH_SCENARIO.split("|").some(filter => name.includes(filter))) return;
   const context = await browser.newContext({ viewport: { width: options.width ?? 1440, height: 1000 } });
   const page = await context.newPage();
   const errors = [];
@@ -100,10 +101,11 @@ async function scenario(name, options, check) {
   } finally { await context.close(); }
 }
 
-async function fill(dialog, amount = '5000') {
+async function fill(dialog, amount = '100') {
   await dialog.getByLabel('Token name', { exact: true }).fill('YSToken');
   await dialog.getByLabel('Symbol', { exact: true }).fill('YS');
-  await dialog.getByLabel('Initial stock liquidity', { exact: true }).fill(amount);
+  await dialog.getByRole('group',{name:'Dev buy input mode'}).getByRole('button',{name:'SPYX amount',exact:true}).click();
+  await dialog.getByLabel('Dev buy amount', { exact: true }).fill(amount);
 }
 async function connect(dialog) {
   const button = dialog.getByRole('button', { name: 'Connect wallet', exact: true });
@@ -122,21 +124,22 @@ try {
     await page.waitForFunction(() => { const button = document.querySelector('.sb-launch-page button[type="submit"]'); return button && !button.disabled; });
     assert.equal(await create.isEnabled(), true);
     assert.equal(await dialog.getByLabel('Token name', { exact: true }).inputValue(), 'YSToken');
-    assert.equal(await dialog.getByLabel('Initial stock liquidity', { exact: true }).inputValue(), '5000');
+    assert.equal(await dialog.getByLabel('Dev buy amount', { exact: true }).inputValue(), '100');
     assert.equal((await page.evaluate(() => window.__walletCalls)).includes('eth_sendTransaction'), false);
     await create.click();
     await dialog.getByRole('alert').waitFor();
     assert.equal((await page.evaluate(() => window.__walletCalls)).includes('eth_sendTransaction'), true);
     assert.equal(await dialog.getByText(/Transaction confirmed/).count(), 0);
   });
-  await scenario('Wallet can connect before required form fields are filled', { correctNetwork: true }, async (page, dialog) => {
+  await scenario('Zero-quote wallet can launch without initial liquidity', { correctNetwork: true, balance: '0' }, async (page, dialog) => {
     await connect(dialog);
-    await dialog.getByRole('button', { name: 'Launch token', exact: true }).waitFor();
-    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
+    const create = dialog.getByRole('button', { name: 'Launch token', exact: true });
+    await create.waitFor();
+    assert.equal(await create.isDisabled(), true);
     await fill(dialog, '0');
-    assert.equal(await dialog.getByRole('button', { name: 'Launch token', exact: true }).isDisabled(), true);
-    await dialog.getByLabel('Initial stock liquidity', { exact: true }).fill('1');
     await page.waitForFunction(() => { const button = document.querySelector('.sb-launch-page button[type="submit"]'); return button && !button.disabled; });
+    assert.equal(await dialog.getByLabel('Initial stock liquidity', {exact:true}).count(), 0);
+    assert.ok((await dialog.getByRole('complementary',{name:'Launch summary'}).innerText()).includes('Not required'));
   });
   await scenario('Missing wallet error is visible on the launch page', { noWallet: true }, async (_page, dialog) => {
     await connect(dialog);

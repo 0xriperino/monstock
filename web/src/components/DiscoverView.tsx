@@ -68,10 +68,10 @@ export function DiscoverView(context: ViewContext) {
       </div>
       <div className="sb-hero-copy">
         <span className="sb-eyebrow"><span className="sb-dot sb-dot--purple" />MEMES MEET MARKETS</span>
-        <h1 id="sb-discover-title">Big meme energy.<br /><span>Stock-backed markets.</span></h1>
+        <h1 id="sb-discover-title">Big meme energy.<br /><span>Curve-powered markets.</span></h1>
         <p>Launch a meme. Trade against {data.stockToken.symbol}.<br className="sb-desktop-break" /> Share the fees with every move.</p>
         <Button onClick={() => navigate("launch")} disabled={busy}>Launch a coin<ArrowRight size={16} aria-hidden="true" /></Button>
-        <div className="sb-hero-footnote"><LockKeyhole size={12} aria-hidden="true" />Fixed supply. Locked liquidity. Built on Monad.</div>
+        <div className="sb-hero-footnote"><LockKeyhole size={12} aria-hidden="true" />Fixed supply. No upfront liquidity. Built on Monad.</div>
       </div>
       <div className="sb-hero-pair" aria-label="StockBack market model">
         <div className="sb-hero-pair-top"><QuoteAssetLogo token={data.stockToken} /><div><strong>MEME <span>×</span> {data.stockToken.symbol}</strong><small>One pair. A shared upside.</small></div><ArrowRight size={16} /></div>
@@ -81,7 +81,7 @@ export function DiscoverView(context: ViewContext) {
     <section className="sb-market-discovery" aria-labelledby="sb-markets-title">
       <div className="sb-discovery-tools">
         <div className="sb-search-field"><Search size={16} aria-hidden="true" /><label className="sb-sr-only" htmlFor={searchId}>Search markets</label><input ref={search} id={searchId} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, ticker, or market address" /><kbd>Ctrl K</kbd>{query && <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X size={14} /></button>}</div>
-        <div className="sb-sort" role="group" aria-label="Sort markets"><span><ArrowDownWideNarrow size={14} aria-hidden="true" />Sort by</span><button type="button" aria-pressed={sort === "liquidity"} onClick={() => setSort("liquidity")}>Stock liquidity</button><button type="button" aria-pressed={sort === "name"} onClick={() => setSort("name")}>Name</button></div>
+        <div className="sb-sort" role="group" aria-label="Sort markets"><span><ArrowDownWideNarrow size={14} aria-hidden="true" />Sort by</span><button type="button" aria-pressed={sort === "liquidity"} onClick={() => setSort("liquidity")}>Quote backing</button><button type="button" aria-pressed={sort === "name"} onClick={() => setSort("name")}>Name</button></div>
       </div>
       <div className="sb-discovery-filters"><div role="group" aria-label="Filter markets"><span className="sb-filter-label">Explore</span>{([{ id: "all", label: "All markets", icon: Layers3 }, { id: "holdings", label: "My holdings", icon: Coins }, { id: "rewards", label: "Rewards ready", icon: Gift }] as const).map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}><Icon size={14} aria-hidden="true" />{label}</button>)}</div><span className="sb-pair-filter"><span className="sb-dot sb-dot--purple" />Paired with <strong>{data.stockToken.symbol}</strong></span></div>
       <div className="sb-market-section-heading"><h2 id="sb-markets-title">{filter === "holdings" ? "Your holdings" : filter === "rewards" ? "Claimable rewards" : "Explore the markets"}<span>{data.marketsStatus === "ready" ? markets.length : "—"}</span></h2><span><ShieldCheck size={13} aria-hidden="true" />Testnet assets only</span></div>
@@ -89,7 +89,7 @@ export function DiscoverView(context: ViewContext) {
         <div className="sb-card-top"><span className={`sb-card-avatar sb-card-avatar--${index % 4}`}>{market.token.image ? <img className="sb-token-art" src={market.token.image} alt="" width={44} height={44} /> : <TokenMark symbol={market.token.symbol} />}</span><span className="sb-rewards-tag"><Gift size={12} aria-hidden="true" />Holder rewards</span><ArrowRight size={16} className="sb-card-arrow" aria-hidden="true" /></div>
         <div className="sb-card-identity"><strong>${market.token.symbol}</strong><span>{market.token.name}</span></div>
         <div className="sb-card-pair">Paired with <QuoteAssetLogo token={market.stockToken ?? data.stockToken} small /><strong>{data.stockToken.symbol}</strong><span className="sb-card-chain">MONAD</span></div>
-        <div className="sb-card-stats"><div><span>Stock liquidity</span><strong><Amount value={market.stockReserve} digits={2} /><small>{data.stockToken.symbol}</small></strong></div><div><span>Token price</span><strong><Amount value={market.estimatedPrice} digits={6} /></strong></div></div>
+        <div className="sb-card-stats"><div><span>{market.bondingCurve ? "Curve backing" : "Quote reserve"}</span><strong><Amount value={market.stockReserve} digits={2} /><small>{data.stockToken.symbol}</small></strong></div><div><span>Token price</span><strong><Amount value={market.estimatedPrice} digits={6} /></strong></div></div>
         <div className="sb-card-bottom"><span><span className="sb-dot sb-dot--purple" />{(market.tradingFeeBps ?? 100) / 100}% trading fee</span><span>Trade pair<ArrowRight size={12} aria-hidden="true" /></span></div>
       </button>)}</div>}
     </section>

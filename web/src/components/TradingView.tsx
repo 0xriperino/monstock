@@ -61,7 +61,7 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
 
   return <div className="sb-stack">
     <section className="sb-market-header" aria-label="Selected market">
-      <div className="sb-token-cell">{market.token.image ? <img src={market.token.image} alt="" width={44} height={44} style={{borderRadius:10}} /> : <TokenMark symbol={market.token.symbol} />}<div><h2>{market.token.symbol}<span className="sb-muted"> / {data.stockToken.symbol}</span></h2><p>{market.token.name}</p><div className="sb-token-links">{([ ["Website", market.token.website], ["X / Twitter", market.token.twitter], ["Telegram", market.token.telegram] ] as const).filter(([,url]) => url).map(([label,url]) => <a key={label} href={url} target="_blank" rel="noopener noreferrer">{label} ↗</a>)}</div></div></div>
+      <div className="sb-token-cell">{market.token.image ? <img src={market.token.image} alt="" width={44} height={44} style={{borderRadius:10}} /> : <TokenMark symbol={market.token.symbol} />}<div><h2>{market.token.symbol}<span className="sb-muted"> / {data.stockToken.symbol}</span></h2><p>{market.token.name}{market.bondingCurve ? " · Bonding curve" : " · Liquidity pool"}</p><div className="sb-token-links">{([ ["Website", market.token.website], ["X / Twitter", market.token.twitter], ["Telegram", market.token.telegram] ] as const).filter(([,url]) => url).map(([label,url]) => <a key={label} href={url} target="_blank" rel="noopener noreferrer">{label} ↗</a>)}</div></div></div>
       <div className="sb-field sb-market-selector"><label htmlFor={`${id}-market`} className="sb-sr-only">Selected market</label><select id={`${id}-market`} value={market.id} disabled={busy} onChange={(event) => { const marketId = event.currentTarget.value; setAmount(""); setQuoteError(null); ++quoteSequence.current; run(() => actions.selectMarket(marketId)); }}>
         {data.markets.map((item) => <option value={item.id} key={item.id}>{item.token.symbol} / {data.stockToken.symbol}</option>)}
       </select></div>
@@ -70,9 +70,10 @@ export function TradingView({ data, actions, ready, busy, now, run, navigate }: 
       <div className="sb-stack">
         <section className="sb-stats sb-stats--three" aria-label="Pool information">
           <Stat label="Estimated token price" unit={`${data.stockToken.symbol}`}><Amount value={market.estimatedPrice} digits={8} /></Stat>
-          <Stat label="Stock reserve" unit={`${data.stockToken.symbol}`}><Amount value={market.stockReserve} /></Stat>
-          <Stat label="Meme reserve" unit={market.token.symbol}><Amount value={market.memeReserve} /></Stat>
+          <Stat label={market.bondingCurve ? "Real curve backing" : "Quote reserve"} unit={`${data.stockToken.symbol}`}><Amount value={market.stockReserve} /></Stat>
+          <Stat label={market.bondingCurve ? "Curve inventory" : "Meme reserve"} unit={market.token.symbol}><Amount value={market.memeReserve} /></Stat>
         </section>
+        {market.bondingCurve && <p className="sb-panel-description">Buys add real {data.stockToken.symbol} backing and move the curve price upward. Sells redeem from that backing and move the price downward. The displayed backing excludes fees and rewards.</p>}
         <Panel title="Holder rewards" aside={<Gift size={18} className="sb-accent" aria-hidden="true" />}>
           <div className="sb-reward-main"><div><span className="sb-muted">Claimable balance</span><strong><Amount value={balanceReady ? market.claimableRewards : null} /><small>{data.stockToken.symbol}</small></strong></div>
             <Button disabled={!balanceReady || !positive(market.claimableRewards ?? "0", data.stockToken.decimals) || busy} onClick={() => run(() => actions.claimHolderRewards(market.id))}>Claim rewards</Button>

@@ -23,6 +23,7 @@ export interface StockBackMarket {
   token: TokenInfo;
   stockToken?: TokenInfo;
   tradingFeeBps?: number;
+  bondingCurve?: boolean;
   stockReserve: TokenAmount;
   memeReserve: TokenAmount;
   /** Estimated quote tokens per one meme token. Null means unavailable. */
@@ -74,7 +75,7 @@ export interface CreateCoinParams {
   name: string;
   symbol: string;
   stockTokenId?: string;
-  initialStockLiquidity: TokenAmount;
+  initialStockLiquidity?: TokenAmount;
   devBuyAmount?: TokenAmount;
   tradingFeeBps?: 100 | 300;
   metadata?: { image?: string; website?: string; twitter?: string; telegram?: string };

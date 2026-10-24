@@ -40,3 +40,7 @@ if (stockAddress && factoryAddress && !quoteAssets.some(a => a.id.toLowerCase() 
 }
 
 export const launcherAddress = configuredAddress(process.env.NEXT_PUBLIC_LAUNCHER_ADDRESS || (!localMode ? launcherDeployment.address : null));
+
+const launcherHistory = launcherDeployment as { legacyLaunchers?: string[]; model?: string };
+export const legacyLauncherAddresses = localMode ? [] : (launcherHistory.legacyLaunchers ?? []).map(configuredAddress).filter((address): address is `0x${string}` => Boolean(address));
+export const bondingCurveMode = process.env.NEXT_PUBLIC_BONDING_CURVE === "true" || (!localMode && launcherHistory.model === "bonding-curve");

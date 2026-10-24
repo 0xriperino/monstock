@@ -11,9 +11,10 @@ const deployment = JSON.parse(await readFile(new URL('shared/deployments.json', 
 const deployer = JSON.parse(await readFile(new URL('shared/deployer.json', root), 'utf8')).address;
 if (deployment.chainId !== 10143 || deployment.status !== 'deployed') throw new Error('Verified Monad Testnet deployment required.');
 const launcher = JSON.parse(await readFile(new URL('shared/launcher.json', root), 'utf8'));
+const isCurve = launcher.model === "bonding-curve";
 const jobs = [
-  ['RewardFactory', launcher.rewardFactory, ['address'], [launcher.treasury]],
-  ['StockBackLauncher', launcher.address, ['address[]', 'address'], [launcher.factories, launcher.rewardFactory]],
+  [isCurve ? 'BondingCurveFactory' : 'RewardFactory', launcher.rewardFactory, ['address'], [launcher.treasury]],
+  [isCurve ? 'BondingCurveLauncher' : 'StockBackLauncher', launcher.address, ['address[]', 'address'], [launcher.factories, launcher.rewardFactory]],
 ];
 const forge = process.env.FORGE_BIN || (process.platform === 'win32' ? join(homedir(), '.foundry/bin/forge.exe') : 'forge');
 const results = {};
@@ -29,7 +30,7 @@ for (const [name, address, types, args] of jobs) {
   });
   const result = await response.json();
   results[address] = { address, httpStatus: response.status, ...result };
-  await writeFile(new URL('shared/launcher-verification.json', root), JSON.stringify({ chainId: 10143, provider: 'agents.devnads.com', contracts: results }, null, 2) + '\n');
+  await writeFile(new URL(isCurve ? 'shared/curve-verification.json' : 'shared/launcher-verification.json', root), JSON.stringify({ chainId: 10143, provider: 'agents.devnads.com', contracts: results }, null, 2) + '\n');
   console.log(JSON.stringify({ contract: name, address, success: result.success, verified: result.verified, total: result.total }));
 }
 if (Object.values(results).some(result => !result.success)) process.exitCode = 1;

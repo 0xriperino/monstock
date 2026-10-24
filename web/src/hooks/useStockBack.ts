@@ -6,7 +6,7 @@ import { getWalletClient } from "wagmi/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TransactionReceipt, WalletClient } from "viem";
 import type { StockBackUIActions, StockBackUIData, TradeQuote, TradeRequest } from "../types/ui";
-import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress } from "../lib/chain";
+import { chain, deploymentReady, publicClient, stockAddress, quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode } from "../lib/chain";
 import { emptyData, errorMessage, StockBackClient } from "../lib/stockback";
 
 export function useStockBack() {
@@ -30,7 +30,7 @@ export function useStockBack() {
     publicClient, chain, asset.id, asset.factory,
     async () => await getWalletClient(config, { chainId: chain.id }) as WalletClient,
     (label, hash) => { if (activeSession.current === session) setTransaction({ status: "pending", label, hash, explorerUrl: hash && chain.blockExplorers ? `${chain.blockExplorers.default.url}/tx/${hash}` : undefined }); },
-    quoteAssets, launcherAddress,
+    quoteAssets, launcherAddress, legacyLauncherAddresses, bondingCurveMode,
   ) : null, [config, session, asset]);
 
   const snapshot = useQuery({
@@ -105,9 +105,10 @@ export function useStockBack() {
     requestFaucet: () => action(`Claim test ${data.stockToken.symbol}`, () => requireClient().faucet()),
     createCoin: params => action("Create coin", () => {
       if (params.stockTokenId && params.stockTokenId.toLowerCase() !== assetId.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+      if (bondingCurveMode) return requireClient().launchCurveCoin(params);
       return params.metadata !== undefined || params.devBuyAmount !== undefined
         ? requireClient().launchCoin(params)
-        : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity);
+        : requireClient().createCoin(params.name, params.symbol, params.initialStockLiquidity ?? "0");
     }),
     selectMarket: marketId => { if (locked.current) throw new Error("Complete the current wallet action first."); if (!data.markets.some(m => m.id.toLowerCase() === marketId.toLowerCase())) throw new Error("Unknown market."); setSelectedId(marketId); setQuote(null); quoteSequence.current++; },
     approveStock: params => action(`Approve ${data.stockToken.symbol}`, async () => { const c = requireClient(); const p = await c.pool(params.marketId); return c.approve(p.stock, p.market, params.amount); }),

@@ -34,17 +34,25 @@ Our answer is a launchpad where token creation, trading, holder rewards, and loc
 
 ### Launch your own meme
 
-Create a token with a name, a ticker, a quote asset, a 1% or 3% trading fee and initial liquidity. The full launch page includes an optional image, website, X and Telegram links, and a summary of the pair and amounts. Artwork and project links are recorded permanently with the launch.
+Create a token with a name, a ticker, a quote asset and a 1% or 3% trading fee. New tokens launch on a bonding curve with **no upfront quote liquidity**. The full launch page includes an optional image, website, X and Telegram links, and a summary of the pair and amounts. Artwork and project links are recorded permanently with the launch.
 
 Creators can optionally buy up to 75% of the supply in the same transaction that creates the market. Choose a percentage or an amount in the quote asset. The launch and first buy either complete together or revert together; there is no separate creator allocation or additional mint.
 
-Each token launches with a fixed supply of **1,000,000 tokens** and receives its own market and StockVault. The initial token supply enters the market, and the initial liquidity stays locked.
+Each token launches with a fixed supply of **1,000,000 tokens** and receives its own market and StockVault. The full token supply starts on the curve. Purchases add real quote reserves and move the price upward; sales return tokens to the curve and redeem quote reserves. The creator never supplies starting quote liquidity.
 
 This gives every StockBack launch a clear starting point: a defined supply, a dedicated trading pair, and a reward structure attached to that market.
 
+### How the bonding curve works
+
+A new curve starts with one million tokens and zero real quote reserves. A fixed virtual pricing reserve sets the starting price without requiring anyone to fund it. Virtual reserves are a pricing parameter, never a balance that can be withdrawn or paid out.
+
+Each buy adds its quote amount, minus the selected trading fee, to real backing and removes meme tokens from the curve. Net buying raises the price. Each sell returns meme tokens and pays from the real backing, minus the trading fee, moving the price downward. Holder and Vault reward balances are accounted for separately from trading reserves.
+
+Launching without a dev buy requires only test MON for network gas. An optional dev buy is the curve's first purchase and is bundled with the launch. The current model is a continuous bonding curve; it does not claim an automatic graduation to an external exchange.
+
 ### Discover and trade markets
 
-Browse launched tokens, search for a community, inspect its liquidity, and open its trading view.
+Browse launched tokens, search for a community, inspect its quote backing, and open its trading view.
 
 Each StockBack market pairs a meme with its chosen quote asset: **SPYX, PYDX, NVDAX, GLDX or ANTHROPIC**. Buy a meme with that asset or sell a meme back into it, with an estimated output and a minimum received amount shown before submitting a trade. An asset selector scopes market discovery, wallet balances and portfolio totals, so amounts in different currencies are never added together.
 
@@ -112,7 +120,7 @@ StockBack is designed to keep the experience understandable from the first launc
 
 1. **Connect a wallet** to participate on Monad Testnet.
 2. **Choose a quote asset** and obtain demo tokens through its one-claim-per-wallet faucet.
-3. **Launch a meme** with its own selected-asset market, or discover an existing one.
+3. **Launch a meme** with its own selected-asset bonding curve, or discover an existing one.
 4. **Buy or sell tokens** in the selected market.
 5. **Settle a ready epoch** to allocate the accumulated fees.
 6. **Claim holder rewards** into the wallet.
@@ -156,7 +164,9 @@ StockBack offers five demo quote assets:
 
 These are independent test tokens with 18 decimals. Each wallet can claim **10,000 tokens once per asset**, so claiming NVDAX does not consume its GLDX or PYDX faucet allocation. Native test MON is separate and pays network gas.
 
-When launching, the creator chooses the quote asset before supplying liquidity. A MEME/NVDAX market uses NVDAX for buys, sell proceeds, trading fees, holder rewards and its StockVault. A MEME/GLDX market follows the same model in GLDX. Choosing an asset does not convert existing balances or migrate an existing market.
+When launching, the creator chooses the quote asset before launching the bonding curve. A MEME/NVDAX market uses NVDAX for buys, sell proceeds, trading fees, holder rewards and its StockVault. A MEME/GLDX market follows the same model in GLDX. Choosing an asset does not convert existing balances or migrate an existing market.
+
+Existing liquidity-pool markets remain available alongside new bonding curves. Each market keeps its original reserves, fee and rewards.
 
 The collection lets users explore different asset-inspired communities without brokerage accounts, stock custody or external asset prices. None of these tokens represents real securities, gold ownership, a company investment or a claim on an issuer. Their names describe the demo concept only.
 

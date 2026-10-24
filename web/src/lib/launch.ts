@@ -1,5 +1,6 @@
 import { formatUnits, parseUnits } from "viem";
 
+export const CURVE_VIRTUAL_QUOTE_RESERVE = 1000n * 10n ** 18n;
 export const MEME_SUPPLY = 1_000_000n * 10n ** 18n;
 export function optionalUnits(value: string): bigint {
   if (!/^\d+(\.\d{1,18})?$/.test(value)) throw new Error("Use a positive decimal amount with up to 18 decimals.");
@@ -19,6 +20,12 @@ export function devBuyForPercent(liquidity: string, percent: number, feeBps = 10
   const initial = optionalUnits(liquidity);
   // Floor the gross input to stay at or below the requested supply percentage.
   return formatUnits(initial * BigInt(percent) * 10_000n / (BigInt(100 - percent) * BigInt(10_000 - feeBps)), 18);
+}
+export function curveLaunchOutput(devBuy: bigint, feeBps = 100) {
+  return launchOutput(CURVE_VIRTUAL_QUOTE_RESERVE, devBuy, feeBps);
+}
+export function curveDevBuyForPercent(percent: number, feeBps = 100) {
+  return devBuyForPercent(formatUnits(CURVE_VIRTUAL_QUOTE_RESERVE, 18), percent, feeBps);
 }
 export function safeProjectUrl(value?: string) {
   if (!value?.trim()) return undefined;

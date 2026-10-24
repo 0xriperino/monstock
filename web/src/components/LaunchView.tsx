@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Gift, Globe, ImagePlus, Inf
 import { formatUnits } from "viem";
 import type { ViewContext } from "./StockBackApp";
 import { Amount, Button, QuoteAssetLogo, atomic } from "./ui";
-import { devBuyForPercent, encodeMetadata, launchOutput, MEME_SUPPLY } from "../lib/launch";
+import { curveDevBuyForPercent, encodeMetadata, curveLaunchOutput, MEME_SUPPLY } from "../lib/launch";
 
 export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewContext) {
   const id = useId();
@@ -13,7 +13,6 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [feeBps, setFeeBps] = useState<100 | 300>(100);
-  const [liquidity, setLiquidity] = useState("1000");
   const [devMode, setDevMode] = useState<"percent" | "amount">("percent");
   const [devPercent, setDevPercent] = useState(0);
   const [devAmount, setDevAmount] = useState("0");
@@ -32,22 +31,21 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
   const locked = busy || uploading;
   const walletConnected = data.wallet.status === "connected";
   const balanceReady = ready && data.wallet.balancesStatus === "ready";
-  const initial = atomic(liquidity, 18) ?? 0n;
   let buyAmount = devAmount;
   if (devMode === "percent") {
-    try { buyAmount = devBuyForPercent(liquidity, devPercent, feeBps); } catch { buyAmount = "0"; }
+    try { buyAmount = curveDevBuyForPercent(devPercent, feeBps); } catch { buyAmount = "0"; }
   }
   const buy = atomic(buyAmount, 18);
-  const output = launchOutput(initial, buy ?? 0n, feeBps);
+  const output = curveLaunchOutput(buy ?? 0n, feeBps);
   const supplyPercent = Number((output * 10000n + MEME_SUPPLY / 2n) / MEME_SUPPLY) / 100;
   const devValid = buy !== null && output <= MEME_SUPPLY * 75n / 100n && (buy === 0n || output > 0n);
-  const total = initial + (buy ?? 0n);
+  const total = buy ?? 0n;
   const available = data.wallet.stockBalance === null ? null : atomic(data.wallet.stockBalance, 18);
-  const sufficient = balanceReady && available !== null && total > 0n && available >= total;
+  const sufficient = balanceReady && available !== null && available >= total;
   let linksError: string | undefined;
   try { encodeMetadata({ image, website, twitter, telegram }); }
   catch (error) { linksError = error instanceof Error ? error.message : "Check your project links."; }
-  const valid = Boolean(name.trim() && name.length <= 48 && new TextEncoder().encode(name.trim()).length <= 128 && /^[A-Z0-9]{1,12}$/.test(symbol) && initial > 0n && devValid && !linksError && !imageError && sufficient);
+  const valid = Boolean(name.trim() && name.length <= 48 && new TextEncoder().encode(name.trim()).length <= 128 && /^[A-Z0-9]{1,12}$/.test(symbol) && devValid && !linksError && !imageError && sufficient);
   const launchSuccess = submitted && data.transaction.status === "success" && data.transaction.label === "Create coin" && data.transaction.hash !== submittedHash;
   const categories = ["All assets", "Stocks & ETFs", "Commodities", "Private companies", "Custom"];
   const assets = (data.quoteAssets ?? [asset]).filter(token => category === "All assets" || (category === "Commodities" ? token.symbol === "GLDX" : category === "Private companies" ? token.symbol === "ANTHROPIC" : category === "Custom" ? token.symbol === "PYDX" : !["GLDX", "ANTHROPIC", "PYDX"].includes(token.symbol)));
@@ -81,12 +79,12 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
 
   return <div className="sb-launch-page">
     <button type="button" className="sb-launch-back" disabled={locked} onClick={() => navigate("launchpad")}><ArrowLeft size={15} />Back to discover</button>
-    <div className="sb-launch-title"><span className="sb-eyebrow"><Rocket size={14} />YOUR IDEA. YOUR MARKET.</span><h1>Launch a token</h1><p>Create a fixed-supply meme token, choose its quote asset, and share trading fees with your community.</p></div>
+    <div className="sb-launch-title"><span className="sb-eyebrow"><Rocket size={14} />YOUR IDEA. YOUR MARKET.</span><h1>Launch a token</h1><p>Launch a fixed-supply meme on a bonding curve, choose its quote asset, and share trading fees. No upfront liquidity.</p></div>
     <form className="sb-launch-layout" onSubmit={event => {
       event.preventDefault();
       if (!ready || !valid || locked || data.launchAvailable === false) return;
       setSubmitted(true); setSubmittedHash(data.transaction.hash);
-      perform(() => actions.createCoin({ name: name.trim(), symbol, stockTokenId: asset.id, initialStockLiquidity: liquidity, devBuyAmount: buyAmount, tradingFeeBps: feeBps, metadata: { image, website, twitter, telegram } }));
+      perform(() => actions.createCoin({ name: name.trim(), symbol, stockTokenId: asset.id, devBuyAmount: buyAmount, tradingFeeBps: feeBps, metadata: { image, website, twitter, telegram } }));
     }}>
       <div className="sb-launch-fields">
         <section className="sb-launch-section">
@@ -130,8 +128,8 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
           <small className="sb-launch-demo-note">Demo assets on Monad Testnet. No real asset backing or issuer affiliation.</small>
         </section>
 
-        <section className="sb-launch-section"><h2>Initial liquidity</h2><p>Seed your market with {asset.symbol}. This liquidity is permanently locked.</p><div className="sb-field"><label htmlFor={`${id}-liquidity`}>Initial stock liquidity</label><div className="sb-input-with-unit"><input id={`${id}-liquidity`} inputMode="decimal" value={liquidity} required disabled={locked} onChange={event => setLiquidity(event.target.value)} /><span>{asset.symbol}</span></div><small>Available: <Amount value={balanceReady ? data.wallet.stockBalance : null} /> {asset.symbol}</small></div>
-          {ready && !sufficient && balanceReady && <p className="sb-negative">Insufficient {asset.symbol} balance for liquidity and dev buy.</p>}
+        <section className="sb-launch-section"><h2>No upfront liquidity</h2><p>Your token launches on a bonding curve. Buyers build the {asset.symbol} reserve, and sellers receive {asset.symbol} from that reserve. The price rises with net buying and falls with selling.</p><p>You only need test MON for launch gas. {asset.symbol} is required only if you choose a dev buy.</p><small>Available for dev buy: <Amount value={balanceReady ? data.wallet.stockBalance : null} /> {asset.symbol}</small>
+          {ready && !sufficient && balanceReady && <p className="sb-negative">Insufficient {asset.symbol} balance for your optional dev buy.</p>}
           {ready && data.wallet.faucetAvailable && <Button type="button" variant="secondary" disabled={locked} onClick={() => perform(actions.requestFaucet)}>Get test {asset.symbol}<ArrowRight size={14} /></Button>}
         </section>
       </div>
@@ -139,8 +137,8 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
       <aside className="sb-launch-aside" aria-label="Launch summary">
         <div className="sb-launch-summary-title"><h2>Launch summary</h2><span className="sb-badge">REWARD</span></div>
         <div className="sb-launch-token-preview">{image ? <img src={image} alt="" width={44} height={44} /> : <span><Rocket size={22} /></span>}<div><strong>{name.trim() || "Your next big idea"}</strong><small>{symbol || "TOKEN"} / {asset.symbol}</small></div></div>
-        <dl className="sb-launch-summary-rows"><div><dt>Launchpad</dt><dd>StockBack</dd></div><div><dt>Fee model</dt><dd>Reward token</dd></div><div><dt>Network</dt><dd>Monad Testnet</dd></div><div><dt>Supply</dt><dd>1 million</dd></div><div><dt>Trading fee</dt><dd>{feeBps / 100}%</dd></div><div><dt>Holder share of fees</dt><dd className="sb-accent">40%</dd></div><div><dt>Transfer tax</dt><dd>None</dd></div><div><dt>Quote asset</dt><dd className="sb-quote-value"><QuoteAssetLogo token={asset} small />{asset.symbol}</dd></div><div><dt>Initial liquidity</dt><dd><Amount value={liquidity} /> {asset.symbol}</dd></div><div><dt>Dev buy</dt><dd>{supplyPercent}% of supply</dd></div><div className="sb-launch-total"><dt>Total quote tokens</dt><dd><Amount value={formatUnits(total, 18)} /> {asset.symbol}</dd></div><div><dt>Network fee</dt><dd>Shown in wallet · MON</dd></div></dl>
-        <div className="sb-launch-guarantees"><p><LockKeyhole size={16} /><span>Liquidity is permanently locked. No additional supply can be minted.</span></p><p><Globe size={16} /><span>Artwork and project links are saved with your launch and cannot be changed.</span></p><p><ShieldCheck size={16} /><span>No separate platform launch fee. Network gas is paid in test MON.</span></p></div>
+        <dl className="sb-launch-summary-rows"><div><dt>Launchpad</dt><dd>StockBack</dd></div><div><dt>Fee model</dt><dd>Reward token</dd></div><div><dt>Network</dt><dd>Monad Testnet</dd></div><div><dt>Supply</dt><dd>1 million</dd></div><div><dt>Trading fee</dt><dd>{feeBps / 100}%</dd></div><div><dt>Holder share of fees</dt><dd className="sb-accent">40%</dd></div><div><dt>Transfer tax</dt><dd>None</dd></div><div><dt>Quote asset</dt><dd className="sb-quote-value"><QuoteAssetLogo token={asset} small />{asset.symbol}</dd></div><div><dt>Market model</dt><dd>Bonding curve</dd></div><div><dt>Upfront liquidity</dt><dd>Not required</dd></div><div><dt>Dev buy</dt><dd>{supplyPercent}% of supply</dd></div><div className="sb-launch-total"><dt>Dev buy cost</dt><dd><Amount value={formatUnits(total, 18)} /> {asset.symbol}</dd></div><div><dt>Network fee</dt><dd>Shown in wallet · MON</dd></div></dl>
+        <div className="sb-launch-guarantees"><p><LockKeyhole size={16} /><span>No creator liquidity deposit. Trading reserves back curve redemptions; supply is fixed.</span></p><p><Globe size={16} /><span>Artwork and project links are saved with your launch and cannot be changed.</span></p><p><ShieldCheck size={16} /><span>No separate platform launch fee. Network gas is paid in test MON.</span></p></div>
         <div className="sb-launch-submit">
           {!walletConnected ? <Button type="button" className="sb-full" disabled={locked} onClick={() => perform(actions.connectWallet)}>Connect wallet<ArrowRight size={16} /></Button> : !ready ? <Button type="button" className="sb-full" disabled={locked} onClick={() => perform(actions.switchNetwork)}>Switch to Monad Testnet</Button> : <Button type="submit" className="sb-full" disabled={!valid || locked || data.launchAvailable === false} busy={busy}>Launch token<Rocket size={16} /></Button>}
           {data.launchAvailable === false && <p role="status">Launch contracts are not configured for this network.</p>}
@@ -148,7 +146,7 @@ export function LaunchView({ data, actions, ready, busy, run, navigate }: ViewCo
           {ready && data.wallet.balancesStatus === "error" && <p role="alert" className="sb-negative">Balance unavailable. {data.wallet.balancesError ?? "Retry when the network recovers."}</p>}
           {(error || data.transaction.status === "error") && <p role="alert" className="sb-negative">{error ?? data.transaction.message}</p>}
           {busy && <p role="status">{data.transaction.label ?? "Waiting for wallet confirmation…"}</p>}
-          {launchSuccess ? <div className="sb-launch-confirmed" role="status"><CheckCircle2 size={18} /><strong>Your token is live.</strong><Button type="button" variant="ghost" onClick={() => navigate("launchpad")}>Explore your market<ArrowRight size={14} /></Button></div> : <small>Review your pair and amounts before confirming. Approval and launch require wallet confirmation.</small>}
+          {launchSuccess ? <div className="sb-launch-confirmed" role="status"><CheckCircle2 size={18} /><strong>Your token is live.</strong><Button type="button" variant="ghost" onClick={() => navigate("launchpad")}>Explore your market<ArrowRight size={14} /></Button></div> : <small>Review your pair and amounts before confirming. Launch requires wallet confirmation. A dev buy may also require token approval.</small>}
         </div>
       </aside>
     </form>

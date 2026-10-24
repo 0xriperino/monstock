@@ -1,8 +1,8 @@
 import { BaseError, formatUnits, getAddress, isAddress, parseUnits, type Abi, type Address, type Chain, type PublicClient, type TransactionReceipt, type WalletClient } from "viem";
-import { factoryAbi, launcherAbi, rewardMarketAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
+import { factoryAbi, curveMarketAbi, curveLauncherAbi, launcherAbi, rewardMarketAbi, marketAbi, memeAbi, stockAbi, vaultAbi } from "./abis";
 import type { ExecuteTradeParams, StockBackUIData, StockBackMarket, TokenApproval, TradeQuote, TradeRequest, VaultPosition, TokenInfo, CreateCoinParams } from "../types/ui";
 
-import { decodeMetadata, encodeMetadata, launchOutput, MEME_SUPPLY, optionalUnits } from "./launch";
+import { decodeMetadata, encodeMetadata, curveLaunchOutput, launchOutput, MEME_SUPPLY, optionalUnits } from "./launch";
 
 export function errorMessage(error: unknown): string {
   return error instanceof BaseError ? error.shortMessage : error instanceof Error ? error.message : "The action could not complete.";
@@ -28,7 +28,7 @@ export function emptyData(networkName: string, message?: string): StockBackUIDat
 }
 
 export type QuoteAssetConfig = TokenInfo & { id: Address; factory: Address };
-type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo; tradingFeeBps: number };
+type Pool = { market: Address; meme: Address; vault: Address; stock: Address; stockToken: TokenInfo; tradingFeeBps: number; launcher?: Address; bondingCurve: boolean };
 type Pending = (label: string, hash?: `0x${string}`) => void;
 
 /** Browser-only integration; contracts and confirmed receipts are the source of truth. */
@@ -43,6 +43,8 @@ export class StockBackClient {
     readonly onPending: Pending = () => {},
     readonly assets: readonly QuoteAssetConfig[] = [{ id: stock, factory, name: "S&P 500", symbol: "SPYX", decimals: 18, logo: "/assets/quotes/spyx.png" }],
     readonly launcher?: Address,
+    readonly legacyLaunchers: readonly Address[] = [],
+    readonly curveMode = false,
   ) {}
 
   async assertDeployment() {
@@ -55,22 +57,30 @@ export class StockBackClient {
   }
 
   async pools(stock?: Address): Promise<Pool[]> {
+    const sources = [
+      ...(this.launcher ? [{ address: this.launcher, bondingCurve: this.curveMode }] : []),
+      ...this.legacyLaunchers.map(address => ({ address, bondingCurve: false })),
+    ];
     const groups = await Promise.all(this.assets.filter(asset => !stock || asset.id.toLowerCase() === stock.toLowerCase()).map(async asset => {
-      const [legacy, launched] = await Promise.all([
+      const [legacy, ...launched] = await Promise.all([
         this.client.readContract({ address: asset.factory, abi: factoryAbi, functionName: "getMarkets" }),
-        this.launcher ? this.client.readContract({ address: this.launcher, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] }) : Promise.resolve([] as Address[]),
+        ...sources.map(source => this.client.readContract({ address: source.address, abi: launcherAbi, functionName: "getMarkets", args: [asset.id] })),
       ]);
-      const markets = [...legacy, ...launched];
-      return Promise.all(markets.map(async market => {
+      const registered = [
+        ...legacy.map(market => ({ market, launcher: undefined as Address | undefined, bondingCurve: false })),
+        ...launched.flatMap((markets, index) => markets.map(market => ({ market, launcher: sources[index].address, bondingCurve: sources[index].bondingCurve }))),
+      ];
+      return Promise.all(registered.map(async entry => {
+        const market = entry.market;
         const [meme, vault, stock, feeBps] = await Promise.all([
           this.client.readContract({ address: market, abi: marketAbi, functionName: "memeToken" }),
           this.client.readContract({ address: market, abi: marketAbi, functionName: "vault" }),
           this.client.readContract({ address: market, abi: marketAbi, functionName: "stockToken" }),
-          launched.some(p => p.toLowerCase() === market.toLowerCase()) ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
+          entry.launcher ? this.client.readContract({ address: market, abi: rewardMarketAbi, functionName: "tradingFeeBps" }) : Promise.resolve(100n),
         ]);
         if (getAddress(stock) !== getAddress(asset.id)) throw new Error("Market uses an unexpected quote asset.");
         if (feeBps !== 100n && feeBps !== 300n) throw new Error("Unsupported market fee.");
-        return { market, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
+        return { ...entry, meme, vault, stock, stockToken: asset, tradingFeeBps: Number(feeBps) };
       }));
     }));
     return groups.flat();
@@ -98,12 +108,13 @@ export class StockBackClient {
     let totalVaultReward = 0n;
     const positions: VaultPosition[] = [];
     const markets = await Promise.all(pools.map(async pool => {
-      const [name, symbol, reserves, epoch, metadataJSON] = await Promise.all([
+      const [name, symbol, reserves, epoch, metadataJSON, pricingReserves] = await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "name" }),
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "symbol" }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "getReserves" }),
         this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "nextEpochAt" }),
-        this.launcher ? this.client.readContract({ address: this.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
+        pool.launcher ? this.client.readContract({ address: pool.launcher, abi: launcherAbi, functionName: "metadata", args: [pool.meme] }) : Promise.resolve(""),
+        pool.bondingCurve ? this.client.readContract({ address: pool.market, abi: curveMarketAbi, functionName: "getPricingReserves" }) : Promise.resolve(null),
       ]);
       const [balance, rewards, stockAllowance, memeAllowance] = user ? await Promise.all([
         this.client.readContract({ address: pool.meme, abi: memeAbi, functionName: "balanceOf", args: [user] }),
@@ -124,8 +135,8 @@ export class StockBackClient {
       }
       totalHolder += rewards ?? 0n;
       return {
-        id: pool.market, stockToken: pool.stockToken, tradingFeeBps: pool.tradingFeeBps, token: { id: pool.meme, name, symbol, decimals: 18, ...decodeMetadata(metadataJSON) }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
-        estimatedPrice: reserves[1] > 0n ? human(reserves[0] * 10n ** 18n / reserves[1]) : null,
+        id: pool.market, stockToken: pool.stockToken, tradingFeeBps: pool.tradingFeeBps, bondingCurve: pool.bondingCurve, token: { id: pool.meme, name, symbol, decimals: 18, ...decodeMetadata(metadataJSON) }, stockReserve: human(reserves[0]), memeReserve: human(reserves[1]),
+        estimatedPrice: (pricingReserves ?? reserves)[1] > 0n ? human((pricingReserves ?? reserves)[0] * 10n ** 18n / (pricingReserves ?? reserves)[1]) : null,
         walletBalance: balance === null ? null : human(balance), claimableRewards: rewards === null ? null : human(rewards),
         stockApproval: stockAllowance === null ? unknownApproval : approval(stockAllowance), memeApproval: memeAllowance === null ? unknownApproval : approval(memeAllowance),
         epoch: { endsAt: Number(epoch) * 1000, canSettle: block.timestamp >= epoch, isSettling: false },
@@ -185,7 +196,7 @@ export class StockBackClient {
     if (!this.launcher) throw new Error("Token launcher is not configured for this network.");
     if (params.stockTokenId && params.stockTokenId.toLowerCase() !== this.stock.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
     if (!params.name.trim() || new TextEncoder().encode(params.name.trim()).length > 128 || !/^[A-Z0-9]{1,12}$/.test(params.symbol)) throw new Error("Enter a token name and a ticker of 1–12 letters or numbers.");
-    const liquidity = amountUnits(params.initialStockLiquidity);
+    const liquidity = amountUnits(params.initialStockLiquidity ?? "0");
     const devBuy = optionalUnits(params.devBuyAmount ?? "0");
     const feeBps = params.tradingFeeBps ?? 100;
     const output = launchOutput(liquidity, devBuy, feeBps);
@@ -199,6 +210,26 @@ export class StockBackClient {
     const allowance = await this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "allowance", args: [account.address, this.launcher] });
     if (allowance < total) await this.approve(this.stock, this.launcher, human(total));
     return this.send("Launch reward token", this.launcher, launcherAbi, "launch", [{ quoteAsset: this.stock, name: params.name.trim(), symbol: params.symbol, liquidity, feeBps: BigInt(feeBps), devBuy, minMemeOut: output * 995n / 1000n, metadataJSON }]);
+  }
+
+  async launchCurveCoin(params: CreateCoinParams) {
+    if (!this.launcher || !this.curveMode) throw new Error("Bonding curve launcher is not configured.");
+    if (params.stockTokenId && params.stockTokenId.toLowerCase() !== this.stock.toLowerCase()) throw new Error("Quote asset changed. Review your pair and retry.");
+    if (!params.name.trim() || new TextEncoder().encode(params.name.trim()).length > 128 || !/^[A-Z0-9]{1,12}$/.test(params.symbol)) throw new Error("Enter a token name and a ticker of 1–12 letters or numbers.");
+    const devBuy = optionalUnits(params.devBuyAmount ?? "0");
+    const feeBps = params.tradingFeeBps ?? 100;
+    const output = curveLaunchOutput(devBuy, feeBps);
+    if (devBuy > 0n && (output === 0n || output > MEME_SUPPLY * 75n / 100n)) throw new Error("Dev buy must be at most 75% of the supply.");
+    const metadataJSON = encodeMetadata(params.metadata);
+    const registered = await this.client.readContract({ address: this.launcher, abi: curveLauncherAbi, functionName: "factoryFor", args: [this.stock] });
+    if (registered.toLowerCase() !== this.factory.toLowerCase()) throw new Error("Launcher quote asset configuration mismatch.");
+    if (devBuy > 0n) {
+      const { account } = await this.signer();
+      await this.checkSpend(this.stock, account.address, this.launcher, devBuy, false);
+      const allowance = await this.client.readContract({ address: this.stock, abi: stockAbi, functionName: "allowance", args: [account.address, this.launcher] });
+      if (allowance < devBuy) await this.approve(this.stock, this.launcher, human(devBuy));
+    }
+    return this.send("Launch bonding curve token", this.launcher, curveLauncherAbi, "launch", [{ quoteAsset: this.stock, name: params.name.trim(), symbol: params.symbol, feeBps: BigInt(feeBps), devBuy, minMemeOut: output * 995n / 1000n, metadataJSON }]);
   }
 
   private async checkSpend(token: Address, user: Address, spender: Address, amount: bigint, requireApproval = true) {
@@ -219,7 +250,9 @@ export class StockBackClient {
       request.side === "buy"
         ? this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "quoteBuy", args: [amount], blockNumber })
         : this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "quoteSell", args: [amount], blockNumber }),
-      this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "getReserves", blockNumber }),
+      pool.bondingCurve
+        ? this.client.readContract({ address: pool.market, abi: curveMarketAbi, functionName: "getPricingReserves", blockNumber })
+        : this.client.readContract({ address: pool.market, abi: marketAbi, functionName: "getReserves", blockNumber }),
     ]);
     const minimum = output * BigInt(10000 - request.slippageBps) / 10000n;
     if (minimum === 0n) throw new Error("Amount is too small to quote.");

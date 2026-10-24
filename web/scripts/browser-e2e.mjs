@@ -14,7 +14,7 @@ const test = createTestClient({ mode: 'anvil', transport: http(deployment.rpcUrl
 const checkpoint = await test.snapshot();
 const artifact = async name => JSON.parse(await readFile(new URL(`../../contracts/out/${name}.sol/${name}.json`, import.meta.url), 'utf8')).abi;
 const stockAbi = await artifact('MockStock');
-const launcherAbi = await artifact('StockBackLauncher');
+const launcherAbi = await artifact('BondingCurveLauncher');
 const marketAbi = await artifact('MemeMarket');
 const account = deployment.accounts.treasury;
 const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : process.platform === 'win32' ? { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' } : {}) });
@@ -72,7 +72,6 @@ try {
   const dialog = page.locator('.sb-launch-page');
   await dialog.getByLabel('Token name', { exact: true }).fill('Browser Meme');
   await dialog.getByLabel('Symbol', { exact: true }).fill('BROW');
-  await dialog.getByLabel('Initial stock liquidity', { exact: true }).fill('100');
   await confirmed(dialog.getByRole('button', { name: 'Launch token', exact: true }));
   await page.getByRole('button', { name: 'Back to discover' }).click();
   const markets = await client.readContract({ address: deployment.contracts.launcher, abi: launcherAbi, functionName: 'getMarkets', args:[deployment.contracts.stockToken] });
